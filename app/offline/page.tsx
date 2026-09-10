@@ -1,0 +1,2 @@
+import Link from 'next/link'
+export default function OfflinePage(){return <main className="container" style={{minHeight:'70vh',display:'grid',placeItems:'center',textAlign:'center'}}><div><div className="tag">MODO OFFLINE</div><h1 className="title" style={{marginTop:18}}>SEM CONEXÃO</h1><p className="muted">Algumas páginas salvas ainda podem funcionar. Reconecte-se para atualizar anúncios e mensagens.</p><Link href="/" className="btn btn-red" style={{display:'inline-block',marginTop:18}}>TENTAR NOVAMENTE</Link></div></main>}
