@@ -119,13 +119,12 @@ export async function fetchGeckoListings(options?: GeckoFilters): Promise<{ data
   }
 
   const limit = Math.max(1, Math.min(options?.limit ?? 100, 1000))
+  const initialOffset = Number.isFinite(options?.offset) && Number(options?.offset) > 0
+    ? Math.max(0, Math.trunc(Number(options?.offset)))
+    : 0
   const params = new URLSearchParams()
   params.set('select', SELECT_FIELDS)
   params.set('status', 'eq.active')
-  params.set('limit', String(limit))
-  if (Number.isFinite(options?.offset) && Number(options?.offset) > 0) {
-    params.set('offset', String(Math.max(0, Math.trunc(Number(options?.offset)))))
-  }
 
   const q = cleanText(options?.query)
   if (q) params.set('or', `(title.ilike.*${q}*,brand.ilike.*${q}*,model.ilike.*${q}*,features.ilike.*${q}*)`)
@@ -165,30 +164,50 @@ export async function fetchGeckoListings(options?: GeckoFilters): Promise<{ data
   params.set('order', sortMap[options?.sort || 'recent'] || sortMap.recent)
 
   try {
-    const endpoint = `${url}/rest/v1/gecko_listings?${params.toString()}`
-    const response = await fetch(endpoint, {
-      method: 'GET',
-      headers: {
-        apikey: anon,
-        Authorization: `Bearer ${anon}`,
-        Accept: 'application/json',
-      },
-      cache: 'no-store',
-    })
+    // O projeto Supabase está limitando cada resposta pública a cerca de 200 linhas.
+    // Por isso pedir limit=1000 em uma única chamada ainda retornava apenas 200
+    // anúncios importados (e, somando 1 anúncio FULLSEND, a home mostrava 201).
+    // Fazemos paginação em lotes de 200 e unimos os resultados aqui.
+    const PAGE_SIZE = 200
+    const rows: GeckoListingRow[] = []
 
-    const text = await response.text()
-    if (!response.ok) {
-      let detail = text
-      try {
-        const parsed = JSON.parse(text)
-        detail = parsed?.message || parsed?.hint || parsed?.details || text
-      } catch {}
-      console.error('FULLSEND gecko_listings read failed:', response.status, detail)
-      return { data: [], error: `Supabase respondeu ${response.status}: ${detail}` }
+    while (rows.length < limit) {
+      const remaining = limit - rows.length
+      const pageLimit = Math.min(PAGE_SIZE, remaining)
+      const pageParams = new URLSearchParams(params)
+      pageParams.set('limit', String(pageLimit))
+      pageParams.set('offset', String(initialOffset + rows.length))
+
+      const endpoint = `${url}/rest/v1/gecko_listings?${pageParams.toString()}`
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          apikey: anon,
+          Authorization: `Bearer ${anon}`,
+          Accept: 'application/json',
+        },
+        cache: 'no-store',
+      })
+
+      const text = await response.text()
+      if (!response.ok) {
+        let detail = text
+        try {
+          const parsed = JSON.parse(text)
+          detail = parsed?.message || parsed?.hint || parsed?.details || text
+        } catch {}
+        console.error('FULLSEND gecko_listings read failed:', response.status, detail)
+        return { data: rows, error: rows.length ? null : `Supabase respondeu ${response.status}: ${detail}` }
+      }
+
+      const parsed = JSON.parse(text)
+      const pageRows: GeckoListingRow[] = Array.isArray(parsed) ? parsed : []
+      rows.push(...pageRows)
+
+      if (pageRows.length < pageLimit) break
     }
 
-    const parsed = JSON.parse(text)
-    return { data: Array.isArray(parsed) ? parsed : [], error: null }
+    return { data: rows.slice(0, limit), error: null }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.error('FULLSEND gecko_listings request failed:', { message, url })
