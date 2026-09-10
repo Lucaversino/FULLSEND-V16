@@ -75,14 +75,14 @@ export default function ListingBoostButton({listingId,title,status='active',init
             </button>
           </div>
           <div className="boost-security">O anúncio só é ativado após a confirmação real do pagamento pelo Mercado Pago.</div>
-        </>:paid?<div className="boost-paid"><CheckCircle2/><h2>PAGAMENTO APROVADO</h2><p>Seu anúncio foi impulsionado automaticamente.</p></div>:<>
+        </>:paid?<div className="boost-paid"><CheckCircle2/><h2>PAGAMENTO APROVADO</h2><p>Seu anúncio foi impulsionado automaticamente.</p></div>:checkout?<>
           <div className="boost-head"><span>PAGAMENTO PIX</span><h2>{checkout.label} • R$ {checkout.amount.toFixed(2).replace('.',',')}</h2><p>Após o pagamento, esta tela confirma automaticamente.</p></div>
           <div className="boost-pix">
             {checkout.qr_code_base64?<img src={`data:image/png;base64,${checkout.qr_code_base64}`} alt="QR Code Pix"/>:<div className="boost-pix-wait"><Loader2 className="vip-spin"/> QR Code sendo preparado</div>}
             {checkout.qr_code?<><textarea readOnly value={checkout.qr_code}/><button onClick={copyPix}><Copy size={15}/> COPIAR PIX</button></>:null}
             <div className="boost-await"><span/><b>AGUARDANDO PAGAMENTO...</b><small>Mercado Pago • atualização automática</small></div>
           </div>
-        </>}
+        </>:<div className="boost-pix-wait"><Loader2 className="vip-spin"/> Preparando pagamento...</div>}
         {error?<div className="boost-error">{error}</div>:null}
       </div>
     </div>:null}
