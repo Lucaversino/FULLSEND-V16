@@ -309,7 +309,7 @@ export default async function Explorar({searchParams}:{searchParams:Promise<Reco
     .select('*')
     .eq('status','active')
     .order('created_at',{ascending:false})
-    .limit(100)
+    .limit(1000)
 
   if(q) own = own.or(`title.ilike.%${q}%,description.ilike.%${q}%,city.ilike.%${q}%`)
   if(p.categoria) own = own.eq('category_slug',p.categoria)
@@ -336,7 +336,7 @@ export default async function Explorar({searchParams}:{searchParams:Promise<Reco
           sort: p.ordem,
         })
       : fetchGeckoListings({
-          limit: 200,
+          limit: 1000,
           query: q,
           city,
           state,

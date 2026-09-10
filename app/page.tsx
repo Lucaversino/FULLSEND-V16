@@ -313,7 +313,7 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
     .select('*')
     .eq('status','active')
     .order('created_at',{ascending:false})
-    .limit(10000)
+    .limit(1000)
 
   if(q) own = own.or(`title.ilike.%${q}%,description.ilike.%${q}%,city.ilike.%${q}%`)
   if(p.categoria) own = own.eq('category_slug',p.categoria)
@@ -369,7 +369,7 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
           sort: p.ordem,
         })
       : fetchGeckoListings({
-          limit: 200,
+          limit: 1000,
           query: q,
           city,
           state,

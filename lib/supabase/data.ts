@@ -118,7 +118,7 @@ export async function fetchGeckoListings(options?: GeckoFilters): Promise<{ data
     return { data: [], error: 'NEXT_PUBLIC_SUPABASE_ANON_KEY não configurada na Vercel.' }
   }
 
-  const limit = Math.max(1, Math.min(options?.limit ?? 100, 200))
+  const limit = Math.max(1, Math.min(options?.limit ?? 100, 1000))
   const params = new URLSearchParams()
   params.set('select', SELECT_FIELDS)
   params.set('status', 'eq.active')
