@@ -16,6 +16,7 @@ export type GeckoListingRow = {
   features?: string | null
   category?: string | null
   category_id?: number | null
+  import_search_category?: string | null
   status: string
   listed_at: string | null
   imported_at: string | null
@@ -35,7 +36,7 @@ export type GeckoListingRow = {
 
 const SELECT_FIELDS = [
   'id','title','price','city','state','image_url','images','external_url',
-  'brand','model','year','mileage','fuel','transmission','features','category','category_id',
+  'brand','model','year','mileage','fuel','transmission','features','category','category_id','import_search_category',
   'status','listed_at','imported_at','is_featured','is_vip','raw_data','ai_rebaixado','ai_roda_grande','ai_stance','ai_style_score','ai_confidence','ai_reason','ai_tags','ai_analyzed_at','ai_manual_rebaixado'
 ].join(',')
 

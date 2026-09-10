@@ -343,6 +343,9 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
     promotedOwnQuery = promotedOwnQuery.eq('state', state)
     promotedGeckoQuery = promotedGeckoQuery.eq('state', state)
   }
+  if (p.categoria) {
+    promotedOwnQuery = promotedOwnQuery.eq('category_slug', p.categoria)
+  }
 
   // Marca é estruturada nos anúncios Gecko. Nos anúncios FULLSEND antigos não há
   // campo de marca confiável, então ao filtrar marca mostramos somente os que
@@ -415,7 +418,7 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
   const promotedListings:UnifiedListing[] = shuffleListings([
     ...(promotedGeckoRes.data||[]).map(fromGecko),
     ...(p.marca ? [] : promotedOwnRows.map((x:any)=>fromFullsend({...x,seller_profile:promotedSellerMap.get(x.user_id)||null}))),
-  ])
+  ].filter((item) => !p.categoria || item.categorySlug === p.categoria))
 
   // Na busca inteligente de rebaixados, respeita também o texto principal.
   if (p.estilo === 'rebaixado' && q) {

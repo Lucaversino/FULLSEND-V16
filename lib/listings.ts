@@ -50,7 +50,20 @@ function normalizeImages(value: unknown): string[] {
 }
 
 
-function categorySlugFromGecko(category: unknown): string {
+function categorySlugFromGecko(category: unknown, importSearchCategory?: unknown): string {
+  // A categoria escolhida na importação é a fonte mais confiável para separar
+  // Motor/Turbo, Rodas, Suspensão, Som e Acessórios. A categoria genérica da OLX
+  // muitas vezes vem apenas como "Peças e acessórios", o que fazia tudo cair
+  // em "acessorios" e deixava "Motores & Turbo" vazio.
+  const imported = String(importSearchCategory || '').toLowerCase().trim()
+  if (imported === 'vehicles') return 'carros'
+  if (imported === 'engine_parts' || imported === 'performance') return 'motores'
+  if (imported === 'wheels_tires') return 'rodas'
+  if (imported === 'suspension') return 'suspensao'
+  if (imported === 'audio') return 'som'
+  if (imported === 'accessories') return 'acessorios'
+
+  // Fallback para registros antigos que ainda não possuem import_search_category.
   const value = String(category || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   if (/carro|van|utilitario|automovel|veiculo/.test(value)) return 'carros'
   if (/motor|turbo|turbina|injecao/.test(value)) return 'motores'
@@ -58,8 +71,6 @@ function categorySlugFromGecko(category: unknown): string {
   if (/suspens/.test(value)) return 'suspensao'
   if (/som|audio/.test(value)) return 'som'
   if (/acessor|peca/.test(value)) return 'acessorios'
-  // A importação Gecko atual usa a PLP de carros/vans/utilitários da OLX.
-  // Quando a origem não informar categoria, trate o item importado como carro.
   return 'carros'
 }
 
@@ -87,7 +98,7 @@ export function fromGecko(x: any): UnifiedListing {
     features: x.features || null,
     description: x.description || x.raw_data?.description || null,
     tags: ['PARCEIRO'],
-    categorySlug: categorySlugFromGecko(x.category),
+    categorySlug: categorySlugFromGecko(x.category, x.import_search_category),
     rawCategory: x.category || null,
     smartText: [
       x.title,
