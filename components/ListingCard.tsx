@@ -21,6 +21,7 @@ export default function ListingCard({ x, doubleClickToOpen=false }: { x: Unified
   const [detailPhone, setDetailPhone] = useState<string | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const detailAttemptedRef = useRef(false)
+  const lastCarouselClickRef = useRef(0)
   const images = useMemo(() => {
     const values = [x.coverUrl, ...(x.images || [])].filter(Boolean) as string[]
     return Array.from(new Set(values)).slice(0, 8)
@@ -87,13 +88,31 @@ export default function ListingCard({ x, doubleClickToOpen=false }: { x: Unified
     setOpen(true)
   }
 
+  const handleCardClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!doubleClickToOpen) {
+      openModal()
+      return
+    }
+
+    // No carrossel: primeiro clique seleciona; segundo clique rápido abre.
+    const now = Date.now()
+    const elapsed = now - lastCarouselClickRef.current
+    lastCarouselClickRef.current = now
+
+    if (elapsed > 0 && elapsed <= 500) {
+      e.preventDefault()
+      e.stopPropagation()
+      lastCarouselClickRef.current = 0
+      openModal()
+    }
+  }
+
   return (
     <>
       <button
         type="button"
         className={`listing-card listing-card-button ${x.isVip ? 'listing-card-vip' : x.isFeatured ? 'listing-card-featured' : ''}`}
-        onClick={doubleClickToOpen ? undefined : openModal}
-        onDoubleClick={doubleClickToOpen ? (e) => { e.preventDefault(); e.stopPropagation(); openModal() } : undefined}
+        onClick={handleCardClick}
         aria-label={doubleClickToOpen ? `${x.title} — dois cliques para abrir` : x.title}
       >
         <div className="listing-media">

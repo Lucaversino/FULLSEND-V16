@@ -80,7 +80,8 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
     pausedRef.current=true
     setDragging(true)
 
-    try{el.setPointerCapture(e.pointerId)}catch{}
+    // Não usamos setPointerCapture aqui: ele fazia os cliques do card
+    // serem redirecionados para o viewport e quebrava o "dois cliques".
   }
 
   function onPointerMove(e:React.PointerEvent<HTMLDivElement>){
@@ -112,8 +113,6 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
     pointerIdRef.current=null
     setDragging(false)
     normalizeLoop()
-
-    try{el.releasePointerCapture(e.pointerId)}catch{}
 
     // No touch, o automático volta após a interação.
     if(e.pointerType==='touch'){
