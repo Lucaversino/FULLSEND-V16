@@ -18,6 +18,10 @@ function shuffle<T>(items:T[]){
 
 export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
   const viewportRef=useRef<HTMLDivElement>(null)
+  const trackRef=useRef<HTMLDivElement>(null)
+  const positionRef=useRef(0)
+  const halfWidthRef=useRef(0)
+  const rafRef=useRef<number|0>(0)
   const [visible,setVisible]=useState<UnifiedListing[]>(()=>items.slice(0,MAX_VISIBLE))
 
   useEffect(()=>{
@@ -25,48 +29,79 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
   },[items])
 
   useEffect(()=>{
-    const el=viewportRef.current
-    if(!el || visible.length<2)return
+    const track=trackRef.current
+    if(!track || visible.length<2)return
 
-    let raf=0
-    let last=performance.now()
-    const speed=26
+    let mounted=true
+    let resizeObserver:ResizeObserver|null=null
 
-    const tick=(now:number)=>{
-      const dt=Math.min(50,now-last)
-      last=now
+    const measure=()=>{
+      if(!trackRef.current)return
+      const half=trackRef.current.scrollWidth/2
+      halfWidthRef.current=half
 
-      el.scrollLeft += speed*(dt/1000)
-
-      const half=el.scrollWidth/2
-      if(half>0 && el.scrollLeft>=half){
-        el.scrollLeft-=half
+      if(half>0){
+        positionRef.current=((positionRef.current%half)+half)%half
+        trackRef.current.style.transform=`translate3d(${-positionRef.current}px,0,0)`
       }
-
-      raf=requestAnimationFrame(tick)
     }
 
-    raf=requestAnimationFrame(tick)
-    return()=>cancelAnimationFrame(raf)
+    requestAnimationFrame(measure)
+
+    if(typeof ResizeObserver!=='undefined'){
+      resizeObserver=new ResizeObserver(measure)
+      resizeObserver.observe(track)
+    }else{
+      window.addEventListener('resize',measure)
+    }
+
+    let last=performance.now()
+    const speed=42 // px/segundo: movimento visível e contínuo
+
+    const tick=(now:number)=>{
+      if(!mounted)return
+
+      const currentTrack=trackRef.current
+      const half=halfWidthRef.current
+      const dt=Math.min(40,Math.max(0,now-last))
+      last=now
+
+      if(currentTrack && half>0){
+        positionRef.current += speed*(dt/1000)
+
+        if(positionRef.current>=half){
+          positionRef.current-=half
+        }
+
+        currentTrack.style.transform=`translate3d(${-positionRef.current}px,0,0)`
+      }
+
+      rafRef.current=requestAnimationFrame(tick)
+    }
+
+    rafRef.current=requestAnimationFrame(tick)
+
+    return()=>{
+      mounted=false
+      if(rafRef.current)cancelAnimationFrame(rafRef.current)
+      resizeObserver?.disconnect()
+      window.removeEventListener('resize',measure)
+    }
   },[visible])
 
   function move(direction:-1|1){
-    const el=viewportRef.current
-    if(!el)return
+    const track=trackRef.current
+    const half=halfWidthRef.current
+    if(!track || half<=0)return
 
-    const card=el.querySelector<HTMLElement>('.featured-carousel-item')
-    const cardWidth=card?.getBoundingClientRect().width||260
-    const amount=(cardWidth+12)*direction
+    const firstCard=track.querySelector<HTMLElement>('.featured-carousel-item')
+    const cardWidth=firstCard?.getBoundingClientRect().width||258
+    const step=cardWidth+12
 
-    el.scrollBy({left:amount,behavior:'smooth'})
-
-    window.setTimeout(()=>{
-      const half=el.scrollWidth/2
-      if(half>0){
-        if(el.scrollLeft>=half)el.scrollLeft-=half
-        if(el.scrollLeft<0)el.scrollLeft+=half
-      }
-    },450)
+    // Seta direita avança; esquerda volta.
+    positionRef.current += step*direction
+    positionRef.current=((positionRef.current%half)+half)%half
+    track.style.transform=`translate3d(${-positionRef.current}px,0,0)`
   }
 
   if(!visible.length)return null
@@ -78,7 +113,7 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
         <span className="section-kicker">SELEÇÃO FULLSEND</span>
         <h2>ANÚNCIOS EM DESTAQUE</h2>
         <p className="featured-subtitle">
-          O carrossel gira automaticamente sem parar. Use as setas para navegar e clique no anúncio para abrir.
+          O carrossel segue rodando automaticamente. Use as setas para navegar e clique no anúncio para abrir.
         </p>
       </div>
 
@@ -99,7 +134,7 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
       </button>
 
       <div ref={viewportRef} className="featured-carousel-viewport">
-        <div className="featured-carousel-track">
+        <div ref={trackRef} className="featured-carousel-track featured-carousel-track-raf">
           {loopItems.map((x,index)=>
             <div
               className={`featured-carousel-item ${x.isVip?'vip':''}`}

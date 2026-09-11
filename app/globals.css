@@ -2788,3 +2788,22 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
     right:7px;
   }
 }
+
+
+/* FULLSEND V16.5.11 — motor RAF contínuo do carrossel */
+.featured-carousel-track-raf{
+  transform:translate3d(0,0,0);
+  will-change:transform;
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+}
+
+.featured-carousel-viewport{
+  overflow:hidden!important;
+}
+
+@media (prefers-reduced-motion: reduce){
+  .featured-carousel-track-raf{
+    will-change:auto;
+  }
+}
