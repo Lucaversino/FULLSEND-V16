@@ -1463,7 +1463,7 @@ select:focus{
 
 .search-main-row{
   display:grid;
-  grid-template-columns:minmax(0,1fr) 210px auto;
+  grid-template-columns:minmax(0,1fr) auto;
   gap:10px;
 }
 

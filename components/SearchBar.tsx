@@ -20,7 +20,6 @@ export default function SearchBar({
   initialCity?: string
 }){
   const [q,setQ] = useState(initialQuery)
-  const [cat,setCat] = useState(initialCategory)
   const [state,setState] = useState(initialState)
   const [city,setCity] = useState(initialCity)
   const [cities,setCities] = useState<string[]>(initialCity ? [initialCity] : [])
@@ -63,7 +62,10 @@ export default function SearchBar({
     const queryText = q.trim()
 
     if (queryText) sp.set('q', queryText)
-    if (cat) sp.set('categoria', cat)
+    // A categoria não aparece mais ao lado da busca.
+    // Se existir uma categoria aplicada por outro filtro do site, ela é preservada.
+    const preservedCategory = currentParams.get('categoria') || initialCategory
+    if (preservedCategory) sp.set('categoria', preservedCategory)
     if (state) sp.set('estado', state)
     if (city) sp.set('cidade', city)
 
@@ -108,21 +110,6 @@ export default function SearchBar({
             placeholder="Digite marca, modelo, turbo, FuelTech, rodas..."
           />
         </div>
-
-        <select
-          className="field search-category"
-          aria-label="Categoria"
-          value={cat}
-          onChange={e=>setCat(e.target.value)}
-        >
-          <option value="">Todas as categorias</option>
-          <option value="carros">Carros</option>
-          <option value="motores">Motores & Turbo</option>
-          <option value="rodas">Rodas & Pneus</option>
-          <option value="suspensao">Suspensão</option>
-          <option value="som">Som Automotivo</option>
-          <option value="acessorios">Acessórios</option>
-        </select>
 
         <button className="btn btn-red search-submit fs-hero-action fs-search-hero-btn" type="submit">
           <Search size={17}/> BUSCAR
