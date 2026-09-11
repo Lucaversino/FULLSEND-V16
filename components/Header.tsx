@@ -33,8 +33,9 @@ export default async function Header() {
                 </Link>
               ) : null}
 
-              <Link className="icon-link fx-icon-btn" href="/perfil" aria-label="Perfil">
-                <User size={19} />
+              <Link className="user-panel-header-link" href="/perfil" aria-label="Abrir painel do usuário">
+                <User size={18} />
+                <span>PAINEL</span>
               </Link>
 
               <Link className="btn btn-red announce-btn fx-main-btn fx-main-btn-red fs-hero-action" href="/anunciar">
