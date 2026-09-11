@@ -2655,3 +2655,19 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
     border-radius:8px;
   }
 }
+
+
+/* FULLSEND V16.5.8 — correção de abertura dos cards no carrossel */
+.featured-carousel-viewport:not(.is-dragging) .listing-card{
+  pointer-events:auto!important;
+}
+
+.featured-carousel-item .listing-card{
+  touch-action:pan-y!important;
+}
+
+@media (hover:hover) and (pointer:fine){
+  .featured-carousel-item .listing-card{
+    cursor:pointer!important;
+  }
+}

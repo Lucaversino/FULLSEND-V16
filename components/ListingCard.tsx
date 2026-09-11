@@ -22,6 +22,8 @@ export default function ListingCard({ x, doubleClickToOpen=false }: { x: Unified
   const [detailLoading, setDetailLoading] = useState(false)
   const detailAttemptedRef = useRef(false)
   const lastCarouselClickRef = useRef(0)
+  const carouselPointerStartRef = useRef<{x:number;y:number;time:number;type:string}|null>(null)
+  const carouselPointerMovedRef = useRef(false)
   const images = useMemo(() => {
     const values = [x.coverUrl, ...(x.images || [])].filter(Boolean) as string[]
     return Array.from(new Set(values)).slice(0, 8)
@@ -88,23 +90,60 @@ export default function ListingCard({ x, doubleClickToOpen=false }: { x: Unified
     setOpen(true)
   }
 
-  const handleCardClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (!doubleClickToOpen) {
+  const handleCardClick = () => {
+    if (!doubleClickToOpen) openModal()
+  }
+
+  const handleCarouselPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!doubleClickToOpen) return
+    carouselPointerMovedRef.current = false
+    carouselPointerStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      time: Date.now(),
+      type: e.pointerType,
+    }
+  }
+
+  const handleCarouselPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!doubleClickToOpen || !carouselPointerStartRef.current) return
+    const start = carouselPointerStartRef.current
+    const distance = Math.hypot(e.clientX - start.x, e.clientY - start.y)
+    if (distance > 10) carouselPointerMovedRef.current = true
+  }
+
+  const handleCarouselPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!doubleClickToOpen) return
+
+    const start = carouselPointerStartRef.current
+    carouselPointerStartRef.current = null
+
+    if (!start || carouselPointerMovedRef.current) {
+      carouselPointerMovedRef.current = false
+      lastCarouselClickRef.current = 0
+      return
+    }
+
+    // Em celular/tablet: um toque abre o anúncio.
+    if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+      lastCarouselClickRef.current = 0
       openModal()
       return
     }
 
-    // No carrossel: primeiro clique seleciona; segundo clique rápido abre.
+    // Desktop: dois cliques rápidos e parados abrem o anúncio.
     const now = Date.now()
     const elapsed = now - lastCarouselClickRef.current
-    lastCarouselClickRef.current = now
 
-    if (elapsed > 0 && elapsed <= 500) {
+    if (elapsed > 0 && elapsed <= 650) {
+      lastCarouselClickRef.current = 0
       e.preventDefault()
       e.stopPropagation()
-      lastCarouselClickRef.current = 0
       openModal()
+      return
     }
+
+    lastCarouselClickRef.current = now
   }
 
   return (
@@ -113,6 +152,14 @@ export default function ListingCard({ x, doubleClickToOpen=false }: { x: Unified
         type="button"
         className={`listing-card listing-card-button ${x.isVip ? 'listing-card-vip' : x.isFeatured ? 'listing-card-featured' : ''}`}
         onClick={handleCardClick}
+        onPointerDown={doubleClickToOpen ? handleCarouselPointerDown : undefined}
+        onPointerMove={doubleClickToOpen ? handleCarouselPointerMove : undefined}
+        onPointerUp={doubleClickToOpen ? handleCarouselPointerUp : undefined}
+        onPointerCancel={doubleClickToOpen ? () => {
+          carouselPointerStartRef.current = null
+          carouselPointerMovedRef.current = false
+          lastCarouselClickRef.current = 0
+        } : undefined}
         aria-label={doubleClickToOpen ? `${x.title} — dois cliques para abrir` : x.title}
       >
         <div className="listing-media">

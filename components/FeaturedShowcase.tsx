@@ -89,7 +89,7 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
     if(!el || !draggingRef.current || pointerIdRef.current!==e.pointerId)return
 
     const dx=e.clientX-startXRef.current
-    if(Math.abs(dx)>5)draggedRef.current=true
+    if(Math.abs(dx)>12)draggedRef.current=true
 
     el.scrollLeft=startScrollRef.current-dx
 
@@ -120,14 +120,7 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
     }
   }
 
-  function handleCarouselClick(e:React.MouseEvent<HTMLDivElement>){
-    // Se houve arraste, limpa o estado e impede qualquer clique residual.
-    if(draggedRef.current){
-      e.preventDefault()
-      e.stopPropagation()
-      draggedRef.current=false
-    }
-  }
+
 
   if(!visible.length)return null
   const loopItems=visible.length>1?[...visible,...visible]:visible
@@ -158,7 +151,6 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
       onPointerMove={onPointerMove}
       onPointerUp={finishPointer}
       onPointerCancel={finishPointer}
-      onClickCapture={handleCarouselClick}
     >
       <div className="featured-carousel-track">
         {loopItems.map((x,index)=><div
