@@ -227,6 +227,15 @@ export default function AdminDashboard({users:initialUsers,listings:initialListi
       {tab==='listings'?<section className="admin-table-wrap">
         <div className="admin-table-head"><span>{filteredListings.length} anúncios</span><small>Marque DESTAQUE/VIP e clique SALVAR. Apenas os marcados entram no carrossel.</small></div>
         <div className="admin-list-stack">{filteredListings.map(x=><article key={`${x.kind}-${x.id}`} className={`admin-listing-row ${x.is_vip?'row-vip':''} ${x.is_featured?'row-featured':''}`}>
+          <div className="admin-listing-thumb">
+            {x.image_url
+              ? <img
+                  src={x.kind==='gecko'?`/api/image?url=${encodeURIComponent(x.image_url)}`:x.image_url}
+                  alt={x.title}
+                  loading="lazy"
+                />
+              : <div className="admin-listing-thumb-empty"><Car size={22}/><span>SEM FOTO</span></div>}
+          </div>
           <div className="admin-listing-main"><div className="admin-origin">{x.kind==='gecko'?'PARCEIRO':'FULLSEND'}</div><input className="admin-inline-title" value={x.title} onChange={e=>patchListing(x.id,x.kind,'title',e.target.value)}/><div className="admin-row-meta"><span>{x.city||'—'}{x.state?` / ${x.state}`:''}</span><span>{money(x.price)}</span><span>{x.status}</span></div></div>
           <div className="admin-listing-controls"><label>Preço<input type="number" value={x.price??''} onChange={e=>patchListing(x.id,x.kind,'price',e.target.value===''?null:Number(e.target.value))}/></label><label>Status<select value={x.status} onChange={e=>patchListing(x.id,x.kind,'status',e.target.value)}>{x.kind==='fullsend'?<><option value="active">Ativo</option><option value="pending">Pendente</option><option value="sold">Vendido</option><option value="blocked">Bloqueado</option><option value="draft">Rascunho</option></>:<><option value="active">Ativo</option><option value="inactive">Inativo</option><option value="blocked">Bloqueado</option></>}</select></label>
             <label className="admin-toggle"><input type="checkbox" checked={!!x.is_featured} onChange={e=>patchListing(x.id,x.kind,'is_featured',e.target.checked)}/><span><Sparkles size={14}/> DESTAQUE</span></label>

@@ -86,7 +86,7 @@ export default async function AdminPage() {
       admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
 
       admin.from('listings')
-        .select('id,user_id,title,slug,price,status,city,state,source,is_featured,is_vip,admin_note,external_url,created_at')
+        .select('id,user_id,title,slug,price,status,city,state,source,is_featured,is_vip,admin_note,external_url,cover_url,created_at')
         .order('created_at', { ascending: false })
         .limit(1000),
 
@@ -147,7 +147,7 @@ export default async function AdminPage() {
     const emailMap = new Map((authUsers?.users || []).map((u: any) => [u.id, u.email || '']))
     const users = profiles.map((x: any) => ({ ...x, email: emailMap.get(x.id) || '' }))
     const listings = [
-      ...own.map((x: any) => ({ ...x, kind: 'fullsend' as const })),
+      ...own.map((x: any) => ({ ...x, kind: 'fullsend' as const, image_url: x.cover_url || null })),
       ...gecko.map((x: any) => ({ ...x, kind: 'gecko' as const, created_at: x.imported_at })),
     ]
     const userMap=new Map<string,any>(users.map((u:any)=>[String(u.id),u]))
