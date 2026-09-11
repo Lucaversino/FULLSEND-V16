@@ -2146,3 +2146,33 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 .user-edit-status-options{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.user-edit-status-options label{display:block;cursor:pointer}.user-edit-status-options input{position:absolute;opacity:0;pointer-events:none}.user-edit-status-options span{min-height:64px;border:1px solid #303741;border-radius:9px;background:#090c10;padding:10px;display:flex;flex-direction:column;justify-content:center;gap:3px}.user-edit-status-options input:checked+span{border-color:#e23447;background:#160c10;box-shadow:0 0 0 2px rgba(226,52,71,.10)}.user-edit-status-options b{font-size:9px;color:#fff}.user-edit-status-options small{font-size:8px;color:#818894}.user-edit-promo-note{margin-top:10px;padding:10px;border:1px solid #4b3f24;border-radius:9px;background:#151106;color:#d7bd77;display:flex;align-items:flex-start;gap:7px;font-size:9px;line-height:1.45}
 .user-edit-feedback{margin:0 20px 10px;padding:10px 12px;border-radius:9px;font-size:10px;font-weight:800}.user-edit-feedback.error{background:#1a0b0f;border:1px solid #632735;color:#ff7080}.user-edit-feedback.success{background:#07180f;border:1px solid #205b38;color:#78e5a6;display:flex;align-items:center;gap:6px}.user-edit-footer{padding:12px 20px;border-top:1px solid #242a33;background:#0a0d11;display:flex;justify-content:flex-end;gap:9px}.user-edit-cancel{height:42px;padding:0 18px;border:1px solid #333a45;border-radius:9px;background:#11151a;color:#c7ccd2;font-size:9px;font-weight:1000;cursor:pointer}.user-edit-modal-pro .user-edit-save{width:auto;min-width:210px;padding:0 20px}
 @media(max-width:760px){.user-edit-backdrop{padding:0;align-items:end}.user-edit-modal-pro{width:100vw;height:96vh;max-height:96vh;border-radius:18px 18px 0 0}.user-edit-head-pro{padding:14px}.user-edit-cover-mini{width:52px;height:44px}.user-edit-title-wrap p{display:none}.user-edit-scroll{padding:12px}.user-edit-section{padding:12px}.user-edit-grid.two,.user-edit-grid.location{grid-template-columns:1fr}.user-edit-grid .wide{grid-column:auto}.user-edit-media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.user-edit-status-options{grid-template-columns:1fr}.user-edit-footer{padding:10px 12px;display:grid;grid-template-columns:1fr 1.5fr}.user-edit-cancel,.user-edit-modal-pro .user-edit-save{width:100%;min-width:0;padding:0 8px}.user-edit-feedback{margin:0 12px 8px}}
+
+
+/* FULLSEND V16.3 — barra de pesquisa ocupando toda a largura + salto aos resultados */
+.search-shell.search-shell-with-location{
+  width:100% !important;
+  max-width:none !important;
+}
+
+.search-main-row{
+  width:100%;
+  grid-template-columns:minmax(0,1fr) auto !important;
+}
+
+.search-input{
+  width:100%;
+  min-width:0;
+}
+
+#resultados{
+  scroll-margin-top:96px;
+}
+
+@media(max-width:820px){
+  .search-main-row{
+    grid-template-columns:1fr !important;
+  }
+  #resultados{
+    scroll-margin-top:78px;
+  }
+}

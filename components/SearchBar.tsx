@@ -70,7 +70,8 @@ export default function SearchBar({
     if (city) sp.set('cidade', city)
 
     const query = sp.toString()
-    router.push(query ? `${target}?${query}` : target)
+    const destination = query ? `${target}?${query}#resultados` : `${target}#resultados`
+    router.push(destination)
   }
 
 

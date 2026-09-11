@@ -466,7 +466,7 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
 
       <div className="explore-layout">
         <FilterSidebar p={p}/>
-        <section className="explore-results">
+        <section id="resultados" className="explore-results">
           <div className="results-toolbar">
             <div className="result-count"><strong>{totalResults}</strong> resultados <span>• página {currentPage} de {totalPages}</span></div>
             {(p.estilo || p.estado || p.cidade || p.marca || p.modelo || p.precoMin || p.precoMax || p.anoMin || p.anoMax || p.kmMin || p.kmMax || p.combustivel || p.cambio) ? <span className="filters-active">FILTROS ATIVOS</span> : null}
