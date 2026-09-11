@@ -2386,3 +2386,124 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 .mini-chat-compose button{height:36px;border-radius:10px;display:grid;place-items:center;cursor:pointer}.mini-attach-btn{border:1px solid #30363d;background:#12161b;color:#cbd1d6}.mini-send-btn{border:1px solid #bd2132;background:linear-gradient(135deg,#ef2b3f,#a40819);color:#fff}
 .mini-chat-compose textarea{min-height:36px;max-height:90px;resize:none;border:1px solid #30363d;border-radius:10px;background:#090c10;color:#fff;padding:9px 10px;font-size:11px!important;line-height:1.35!important;outline:0}.mini-chat-security{display:block;margin:6px 2px 0;text-align:center;font-size:7px;color:#59616a}
 @media(max-width:560px){.mini-chat-window{left:8px;right:8px;bottom:calc(68px + env(safe-area-inset-bottom));width:auto;height:min(620px,calc(100dvh - 108px));border-radius:16px}.mini-chat-head{height:60px}.floating-messages-button{z-index:61}.chat-attachment{max-width:240px}}
+
+
+/* FULLSEND V16.5.2 — correção definitiva do card/modal de anúncio */
+@media (min-width:821px){
+  .quick-modal{
+    width:min(1080px,94vw)!important;
+    height:min(720px,90vh)!important;
+    max-height:min(720px,90vh)!important;
+    grid-template-columns:minmax(0,1.55fr) minmax(360px,.85fr)!important;
+    align-items:stretch!important;
+  }
+
+  .quick-modal-media{
+    min-height:0!important;
+    height:100%!important;
+    max-height:none!important;
+    background:#07080a!important;
+  }
+
+  .quick-modal-media>img,
+  .quick-modal-media img,
+  .quick-modal-image,
+  .quick-modal-main-image{
+    position:absolute!important;
+    inset:0!important;
+    width:100%!important;
+    height:100%!important;
+    max-height:none!important;
+    object-fit:cover!important;
+    object-position:center center!important;
+    background:#07080a!important;
+  }
+
+  .quick-modal-content{
+    min-height:0!important;
+    height:100%!important;
+    max-height:100%!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    padding:28px 28px 22px!important;
+    scrollbar-width:thin;
+  }
+
+  .quick-modal-actions{
+    position:sticky;
+    bottom:-1px;
+    z-index:3;
+    margin-left:-4px;
+    margin-right:-4px;
+    padding:12px 4px 4px;
+    background:linear-gradient(180deg,rgba(11,11,13,0),#0b0b0d 24%,#0b0b0d 100%);
+  }
+
+  .quick-description-block p{
+    max-height:120px!important;
+  }
+}
+
+/* Mobile: modal compacto, imagem proporcional e conteúdo rolável sem cortar botões */
+@media (max-width:820px){
+  .quick-modal-backdrop{
+    padding:8px!important;
+    align-items:center!important;
+  }
+
+  .quick-modal{
+    width:100%!important;
+    height:auto!important;
+    max-height:94dvh!important;
+    display:flex!important;
+    flex-direction:column!important;
+    overflow:hidden!important;
+  }
+
+  .quick-modal-media{
+    flex:0 0 auto!important;
+    min-height:0!important;
+    height:auto!important;
+    aspect-ratio:16/10!important;
+  }
+
+  .quick-modal-media>img,
+  .quick-modal-media img,
+  .quick-modal-image,
+  .quick-modal-main-image{
+    width:100%!important;
+    height:100%!important;
+    max-height:none!important;
+    object-fit:cover!important;
+    object-position:center center!important;
+  }
+
+  .quick-modal-content{
+    min-height:0!important;
+    flex:1 1 auto!important;
+    overflow-y:auto!important;
+    padding:18px!important;
+  }
+
+  .quick-modal-actions{
+    padding-bottom:4px;
+  }
+}
+
+@media (max-width:520px){
+  .quick-modal-media{
+    aspect-ratio:4/3!important;
+  }
+
+  .quick-modal-content{
+    padding:15px!important;
+  }
+
+  .quick-modal-content h2{
+    font-size:21px!important;
+  }
+
+  .quick-price{
+    font-size:27px!important;
+  }
+}
