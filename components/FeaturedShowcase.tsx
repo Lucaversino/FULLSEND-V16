@@ -22,7 +22,6 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
   const draggingRef=useRef(false)
   const draggedRef=useRef(false)
   const pointerIdRef=useRef<number|null>(null)
-  const allowProgrammaticOpenRef=useRef(false)
   const startXRef=useRef(0)
   const startScrollRef=useRef(0)
   const [dragging,setDragging]=useState(false)
@@ -123,43 +122,11 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
   }
 
   function handleCarouselClick(e:React.MouseEvent<HTMLDivElement>){
-    if(allowProgrammaticOpenRef.current){
-      allowProgrammaticOpenRef.current=false
-      return
-    }
-
-    // Depois de arrastar, não abre anúncio acidentalmente.
+    // Se houve arraste, limpa o estado e impede qualquer clique residual.
     if(draggedRef.current){
       e.preventDefault()
       e.stopPropagation()
       draggedRef.current=false
-      return
-    }
-
-    // No carrossel, um clique simples serve apenas para selecionar/segurar.
-    // O anúncio abre somente com duplo clique.
-    const target=e.target as HTMLElement
-    if(target.closest('.listing-card')){
-      e.preventDefault()
-      e.stopPropagation()
-    }
-  }
-
-  function handleDoubleClick(e:React.MouseEvent<HTMLDivElement>){
-    if(draggedRef.current){
-      draggedRef.current=false
-      return
-    }
-
-    const target=e.target as HTMLElement
-    const item=target.closest('.featured-carousel-item')
-    const card=item?.querySelector<HTMLButtonElement>('.listing-card')
-
-    if(card){
-      e.preventDefault()
-      e.stopPropagation()
-      allowProgrammaticOpenRef.current=true
-      card.click()
     }
   }
 
@@ -193,14 +160,13 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
       onPointerUp={finishPointer}
       onPointerCancel={finishPointer}
       onClickCapture={handleCarouselClick}
-      onDoubleClick={handleDoubleClick}
     >
       <div className="featured-carousel-track">
         {loopItems.map((x,index)=><div
           className={`featured-carousel-item ${x.isVip?'vip':''}`}
           key={`${x.kind}-${x.id}-${index}`}
           aria-hidden={index>=visible.length ? true : undefined}
-        ><ListingCard x={x}/></div>)}
+        ><ListingCard x={x} doubleClickToOpen/></div>)}
       </div>
     </div>
   </section>

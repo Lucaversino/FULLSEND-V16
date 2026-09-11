@@ -13,7 +13,7 @@ function money(value: number | null) {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 }
 
-export default function ListingCard({ x }: { x: UnifiedListing }) {
+export default function ListingCard({ x, doubleClickToOpen=false }: { x: UnifiedListing; doubleClickToOpen?: boolean }) {
   const external = x.kind === 'gecko'
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
@@ -89,7 +89,13 @@ export default function ListingCard({ x }: { x: UnifiedListing }) {
 
   return (
     <>
-      <button type="button" className={`listing-card listing-card-button ${x.isVip ? 'listing-card-vip' : x.isFeatured ? 'listing-card-featured' : ''}`} onClick={openModal}>
+      <button
+        type="button"
+        className={`listing-card listing-card-button ${x.isVip ? 'listing-card-vip' : x.isFeatured ? 'listing-card-featured' : ''}`}
+        onClick={doubleClickToOpen ? undefined : openModal}
+        onDoubleClick={doubleClickToOpen ? (e) => { e.preventDefault(); e.stopPropagation(); openModal() } : undefined}
+        aria-label={doubleClickToOpen ? `${x.title} — dois cliques para abrir` : x.title}
+      >
         <div className="listing-media">
           {x.coverUrl ? <img src={x.coverUrl} alt={x.title} loading="lazy" /> : <div className="no-photo">SEM FOTO</div>}
           <span className={`source-badge ${external ? 'partner' : 'native'}`}>{x.sourceLabel}</span>
