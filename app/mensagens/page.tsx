@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import MessagesHub from '@/components/MessagesHub'\nimport { signAttachments } from '@/lib/messages/attachments'
+import MessagesHub from '@/components/MessagesHub'
+import { signAttachments } from '@/lib/messages/attachments'
 
 export const dynamic='force-dynamic'
 
