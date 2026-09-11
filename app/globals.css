@@ -2507,3 +2507,50 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
     font-size:27px!important;
   }
 }
+
+
+/* FULLSEND V16.5.3 — carrossel Destaques com arraste manual */
+.featured-carousel-viewport{
+  cursor:grab!important;
+  user-select:none;
+  -webkit-user-select:none;
+  touch-action:pan-y!important;
+  overscroll-behavior-x:contain;
+  scroll-behavior:auto!important;
+}
+
+.featured-carousel-viewport.is-dragging{
+  cursor:grabbing!important;
+}
+
+.featured-carousel-viewport.is-dragging,
+.featured-carousel-viewport.is-dragging *{
+  cursor:grabbing!important;
+}
+
+.featured-carousel-viewport.is-dragging img,
+.featured-carousel-viewport.is-dragging a,
+.featured-carousel-viewport.is-dragging button{
+  pointer-events:none!important;
+}
+
+.featured-carousel-track{
+  will-change:transform;
+}
+
+.featured-carousel-item{
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+.featured-carousel-item img{
+  -webkit-user-drag:none;
+  user-drag:none;
+}
+
+@media(max-width:820px){
+  .featured-carousel-viewport{
+    cursor:grab!important;
+    -webkit-overflow-scrolling:touch;
+  }
+}
