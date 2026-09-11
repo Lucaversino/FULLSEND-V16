@@ -2853,3 +2853,69 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
     object-fit:contain!important;
   }
 }
+
+
+/* FULLSEND V16.5.13 — fundo grafite premium com padrão da marca */
+.quick-modal-media{
+  position:relative!important;
+  isolation:isolate;
+  background:#181818!important;
+}
+
+/* Camada exclusiva da marca d'água:
+   não altera a opacidade da foto nem dos controles */
+.quick-modal-media::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  background-color:#181818;
+  background-image:url('/fullsend-logo.png');
+  background-repeat:repeat;
+  background-size:210px auto;
+  background-position:24px 22px;
+  opacity:.40;
+  transform:translateZ(0);
+}
+
+/* Foto permanece 100% nítida, inteira e acima do padrão */
+.quick-modal-media>img,
+.quick-modal-media img,
+.quick-modal-image,
+.quick-modal-main-image{
+  position:relative!important;
+  z-index:1!important;
+  object-fit:contain!important;
+  object-position:center center!important;
+  background:transparent!important;
+}
+
+/* Controles sempre acima da foto e do wallpaper */
+.quick-modal-media .quick-nav,
+.quick-modal-media .quick-photo-count,
+.quick-modal-media .quick-modal-no-photo{
+  position:absolute;
+  z-index:3!important;
+}
+
+/* Mantém o mesmo fundo no mobile */
+@media (max-width:820px){
+  .quick-modal-media{
+    background:#181818!important;
+  }
+
+  .quick-modal-media::before{
+    background-size:150px auto;
+    background-position:18px 18px;
+    opacity:.40;
+  }
+
+  .quick-modal-media>img,
+  .quick-modal-media img,
+  .quick-modal-image,
+  .quick-modal-main-image{
+    background:transparent!important;
+    object-fit:contain!important;
+  }
+}
