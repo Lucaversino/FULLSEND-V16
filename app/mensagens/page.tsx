@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import MessagesHub from '@/components/MessagesHub'
+import MessagesHub from '@/components/MessagesHub'\nimport { signAttachments } from '@/lib/messages/attachments'
 
 export const dynamic='force-dynamic'
 
@@ -37,7 +37,7 @@ export default async function MessagesPage({searchParams}:{searchParams:Promise<
   const [{data:profiles},{data:listings},{data:lastMessages},{data:unreads}]=await Promise.all([
     otherIds.length?admin.from('profiles').select('id,name,avatar_url,badge').in('id',otherIds):Promise.resolve({data:[] as any[]}),
     listingIds.length?admin.from('listings').select('id,title,slug,cover_url').in('id',listingIds):Promise.resolve({data:[] as any[]}),
-    convs.length?admin.from('messages').select('id,conversation_id,sender_id,body,read_at,created_at').in('conversation_id',convs.map((c:any)=>c.id)).order('created_at',{ascending:false}):Promise.resolve({data:[] as any[]}),
+    convs.length?admin.from('messages').select('id,conversation_id,sender_id,body,attachments,read_at,created_at').in('conversation_id',convs.map((c:any)=>c.id)).order('created_at',{ascending:false}):Promise.resolve({data:[] as any[]}),
     convs.length?admin.from('messages').select('id,conversation_id,sender_id,read_at').in('conversation_id',convs.map((c:any)=>c.id)).neq('sender_id',user.id).is('read_at',null):Promise.resolve({data:[] as any[]})
   ])
 
@@ -67,7 +67,7 @@ export default async function MessagesPage({searchParams}:{searchParams:Promise<
   let initialMessages:any[]=[]
   if(selectedId){
     const {data}=await admin.from('messages')
-      .select('id,conversation_id,sender_id,body,read_at,created_at')
+      .select('id,conversation_id,sender_id,body,attachments,read_at,created_at')
       .eq('conversation_id',selectedId)
       .order('created_at',{ascending:true})
       .limit(500)
