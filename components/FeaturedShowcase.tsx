@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import ListingCard from '@/components/ListingCard'
 import type { UnifiedListing } from '@/lib/listings'
-import { Crown, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Crown, Sparkles } from 'lucide-react'
 
 const MAX_VISIBLE = 10
 
@@ -19,35 +19,31 @@ function shuffle<T>(items:T[]){
 export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
   const viewportRef=useRef<HTMLDivElement>(null)
   const pausedRef=useRef(false)
-  const draggingRef=useRef(false)
-  const draggedRef=useRef(false)
-  const pointerIdRef=useRef<number|null>(null)
-  const startXRef=useRef(0)
-  const startScrollRef=useRef(0)
-  const [dragging,setDragging]=useState(false)
   const [visible,setVisible]=useState<UnifiedListing[]>(()=>items.slice(0,MAX_VISIBLE))
 
   useEffect(()=>{
     setVisible(shuffle(items).slice(0,MAX_VISIBLE))
   },[items])
 
-  // Movimento automático e infinito quando o usuário não está interagindo.
   useEffect(()=>{
     const el=viewportRef.current
     if(!el || visible.length<2)return
 
     let raf=0
     let last=performance.now()
-    const speed=34
+    const speed=26
 
     const tick=(now:number)=>{
       const dt=Math.min(50,now-last)
       last=now
 
-      if(!pausedRef.current && !draggingRef.current){
+      if(!pausedRef.current){
         el.scrollLeft += speed*(dt/1000)
+
         const half=el.scrollWidth/2
-        if(half>0 && el.scrollLeft>=half)el.scrollLeft-=half
+        if(half>0 && el.scrollLeft>=half){
+          el.scrollLeft-=half
+        }
       }
 
       raf=requestAnimationFrame(tick)
@@ -57,70 +53,27 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
     return()=>cancelAnimationFrame(raf)
   },[visible])
 
-  function normalizeLoop(){
+  function move(direction:-1|1){
     const el=viewportRef.current
-    if(!el || visible.length<2)return
+    if(!el)return
 
-    const half=el.scrollWidth/2
-    if(half<=0)return
-
-    while(el.scrollLeft>=half)el.scrollLeft-=half
-    while(el.scrollLeft<0)el.scrollLeft+=half
-  }
-
-  function onPointerDown(e:React.PointerEvent<HTMLDivElement>){
-    const el=viewportRef.current
-    if(!el || visible.length<2)return
-
-    draggingRef.current=true
-    draggedRef.current=false
-    pointerIdRef.current=e.pointerId
-    startXRef.current=e.clientX
-    startScrollRef.current=el.scrollLeft
     pausedRef.current=true
-    setDragging(true)
 
-    // Não usamos setPointerCapture aqui: ele fazia os cliques do card
-    // serem redirecionados para o viewport e quebrava o "dois cliques".
-  }
+    const card=el.querySelector<HTMLElement>('.featured-carousel-item')
+    const cardWidth=card?.getBoundingClientRect().width||260
+    const amount=(cardWidth+12)*direction
 
-  function onPointerMove(e:React.PointerEvent<HTMLDivElement>){
-    const el=viewportRef.current
-    if(!el || !draggingRef.current || pointerIdRef.current!==e.pointerId)return
+    el.scrollBy({left:amount,behavior:'smooth'})
 
-    const dx=e.clientX-startXRef.current
-    if(Math.abs(dx)>12)draggedRef.current=true
-
-    el.scrollLeft=startScrollRef.current-dx
-
-    const half=el.scrollWidth/2
-    if(half>0){
-      if(el.scrollLeft>=half){
-        el.scrollLeft-=half
-        startScrollRef.current-=half
-      }else if(el.scrollLeft<=0 && dx>0){
-        el.scrollLeft+=half
-        startScrollRef.current+=half
+    window.setTimeout(()=>{
+      const half=el.scrollWidth/2
+      if(half>0){
+        if(el.scrollLeft>=half)el.scrollLeft-=half
+        if(el.scrollLeft<0)el.scrollLeft+=half
       }
-    }
+      pausedRef.current=false
+    },450)
   }
-
-  function finishPointer(e:React.PointerEvent<HTMLDivElement>){
-    const el=viewportRef.current
-    if(!el || pointerIdRef.current!==e.pointerId)return
-
-    draggingRef.current=false
-    pointerIdRef.current=null
-    setDragging(false)
-    normalizeLoop()
-
-    // No touch, o automático volta após a interação.
-    if(e.pointerType==='touch'){
-      window.setTimeout(()=>{pausedRef.current=false},500)
-    }
-  }
-
-
 
   if(!visible.length)return null
   const loopItems=visible.length>1?[...visible,...visible]:visible
@@ -131,9 +84,10 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
         <span className="section-kicker">SELEÇÃO FULLSEND</span>
         <h2>ANÚNCIOS EM DESTAQUE</h2>
         <p className="featured-subtitle">
-          Arraste para escolher o anúncio. No computador, dê dois cliques no card para abrir.
+          Navegue pelas setas e clique normalmente no anúncio para abrir.
         </p>
       </div>
+
       <div className="featured-legend">
         <span><Sparkles size={13}/>DESTAQUE</span>
         <span className="vip"><Crown size={13}/>VIP</span>
@@ -141,24 +95,41 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
     </div>
 
     <div
-      ref={viewportRef}
-      className={`featured-carousel-viewport ${dragging?'is-dragging':''}`}
+      className="featured-carousel-shell"
       onMouseEnter={()=>{pausedRef.current=true}}
-      onMouseLeave={()=>{
-        if(!draggingRef.current)pausedRef.current=false
-      }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={finishPointer}
-      onPointerCancel={finishPointer}
+      onMouseLeave={()=>{pausedRef.current=false}}
     >
-      <div className="featured-carousel-track">
-        {loopItems.map((x,index)=><div
-          className={`featured-carousel-item ${x.isVip?'vip':''}`}
-          key={`${x.kind}-${x.id}-${index}`}
-          aria-hidden={index>=visible.length ? true : undefined}
-        ><ListingCard x={x} doubleClickToOpen/></div>)}
+      <button
+        type="button"
+        className="featured-carousel-arrow featured-carousel-arrow-left"
+        onClick={()=>move(-1)}
+        aria-label="Voltar anúncios"
+      >
+        <ChevronLeft size={25}/>
+      </button>
+
+      <div ref={viewportRef} className="featured-carousel-viewport">
+        <div className="featured-carousel-track">
+          {loopItems.map((x,index)=>
+            <div
+              className={`featured-carousel-item ${x.isVip?'vip':''}`}
+              key={`${x.kind}-${x.id}-${index}`}
+              aria-hidden={index>=visible.length ? true : undefined}
+            >
+              <ListingCard x={x}/>
+            </div>
+          )}
+        </div>
       </div>
+
+      <button
+        type="button"
+        className="featured-carousel-arrow featured-carousel-arrow-right"
+        onClick={()=>move(1)}
+        aria-label="Avançar anúncios"
+      >
+        <ChevronRight size={25}/>
+      </button>
     </div>
   </section>
 }
