@@ -22,6 +22,7 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
   const draggingRef=useRef(false)
   const draggedRef=useRef(false)
   const pointerIdRef=useRef<number|null>(null)
+  const allowProgrammaticOpenRef=useRef(false)
   const startXRef=useRef(0)
   const startScrollRef=useRef(0)
   const [dragging,setDragging]=useState(false)
@@ -121,11 +122,45 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
     }
   }
 
-  function suppressClickAfterDrag(e:React.MouseEvent<HTMLDivElement>){
-    if(!draggedRef.current)return
-    e.preventDefault()
-    e.stopPropagation()
-    draggedRef.current=false
+  function handleCarouselClick(e:React.MouseEvent<HTMLDivElement>){
+    if(allowProgrammaticOpenRef.current){
+      allowProgrammaticOpenRef.current=false
+      return
+    }
+
+    // Depois de arrastar, não abre anúncio acidentalmente.
+    if(draggedRef.current){
+      e.preventDefault()
+      e.stopPropagation()
+      draggedRef.current=false
+      return
+    }
+
+    // No carrossel, um clique simples serve apenas para selecionar/segurar.
+    // O anúncio abre somente com duplo clique.
+    const target=e.target as HTMLElement
+    if(target.closest('.listing-card')){
+      e.preventDefault()
+      e.stopPropagation()
+    }
+  }
+
+  function handleDoubleClick(e:React.MouseEvent<HTMLDivElement>){
+    if(draggedRef.current){
+      draggedRef.current=false
+      return
+    }
+
+    const target=e.target as HTMLElement
+    const item=target.closest('.featured-carousel-item')
+    const card=item?.querySelector<HTMLButtonElement>('.listing-card')
+
+    if(card){
+      e.preventDefault()
+      e.stopPropagation()
+      allowProgrammaticOpenRef.current=true
+      card.click()
+    }
   }
 
   if(!visible.length)return null
@@ -137,7 +172,7 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
         <span className="section-kicker">SELEÇÃO FULLSEND</span>
         <h2>ANÚNCIOS EM DESTAQUE</h2>
         <p className="featured-subtitle">
-          Arraste o carrossel com o mouse ou dedo para escolher o anúncio que deseja ver.
+          Arraste para escolher o anúncio. No computador, dê dois cliques no card para abrir.
         </p>
       </div>
       <div className="featured-legend">
@@ -157,7 +192,8 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
       onPointerMove={onPointerMove}
       onPointerUp={finishPointer}
       onPointerCancel={finishPointer}
-      onClickCapture={suppressClickAfterDrag}
+      onClickCapture={handleCarouselClick}
+      onDoubleClick={handleDoubleClick}
     >
       <div className="featured-carousel-track">
         {loopItems.map((x,index)=><div
