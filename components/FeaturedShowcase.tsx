@@ -18,7 +18,6 @@ function shuffle<T>(items:T[]){
 
 export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
   const viewportRef=useRef<HTMLDivElement>(null)
-  const pausedRef=useRef(false)
   const [visible,setVisible]=useState<UnifiedListing[]>(()=>items.slice(0,MAX_VISIBLE))
 
   useEffect(()=>{
@@ -37,13 +36,11 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
       const dt=Math.min(50,now-last)
       last=now
 
-      if(!pausedRef.current){
-        el.scrollLeft += speed*(dt/1000)
+      el.scrollLeft += speed*(dt/1000)
 
-        const half=el.scrollWidth/2
-        if(half>0 && el.scrollLeft>=half){
-          el.scrollLeft-=half
-        }
+      const half=el.scrollWidth/2
+      if(half>0 && el.scrollLeft>=half){
+        el.scrollLeft-=half
       }
 
       raf=requestAnimationFrame(tick)
@@ -57,8 +54,6 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
     const el=viewportRef.current
     if(!el)return
 
-    pausedRef.current=true
-
     const card=el.querySelector<HTMLElement>('.featured-carousel-item')
     const cardWidth=card?.getBoundingClientRect().width||260
     const amount=(cardWidth+12)*direction
@@ -71,7 +66,6 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
         if(el.scrollLeft>=half)el.scrollLeft-=half
         if(el.scrollLeft<0)el.scrollLeft+=half
       }
-      pausedRef.current=false
     },450)
   }
 
@@ -84,7 +78,7 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
         <span className="section-kicker">SELEÇÃO FULLSEND</span>
         <h2>ANÚNCIOS EM DESTAQUE</h2>
         <p className="featured-subtitle">
-          Navegue pelas setas e clique normalmente no anúncio para abrir.
+          O carrossel gira automaticamente sem parar. Use as setas para navegar e clique no anúncio para abrir.
         </p>
       </div>
 
@@ -94,11 +88,7 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
       </div>
     </div>
 
-    <div
-      className="featured-carousel-shell"
-      onMouseEnter={()=>{pausedRef.current=true}}
-      onMouseLeave={()=>{pausedRef.current=false}}
-    >
+    <div className="featured-carousel-shell">
       <button
         type="button"
         className="featured-carousel-arrow featured-carousel-arrow-left"
