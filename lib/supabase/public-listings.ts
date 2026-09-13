@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { proxiedImage, type UnifiedListing } from '@/lib/listings'
 
-export const ITEMS_PER_PAGE = 15
+export const ITEMS_PER_PAGE = 16
 
 type PublicSearchParams = {
   page: number

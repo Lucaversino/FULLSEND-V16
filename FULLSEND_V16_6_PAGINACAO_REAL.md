@@ -2,7 +2,7 @@
 
 ## O que foi implementado
 
-- 15 anúncios por página (`ITEMS_PER_PAGE = 15`).
+- 16 anúncios por página (`ITEMS_PER_PAGE = 16`).
 - A página pública não carrega mais 500/1000 anúncios para depois usar `slice()`.
 - A consulta principal agora é executada por uma função SQL no Supabase (`search_public_listings`) que:
   - une `listings` + `gecko_listings`;

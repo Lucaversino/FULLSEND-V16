@@ -4,7 +4,7 @@
 
 create or replace function public.search_public_listings(
   p_page integer default 1,
-  p_page_size integer default 15,
+  p_page_size integer default 16,
   p_query text default null,
   p_state text default null,
   p_city text default null,
@@ -31,7 +31,7 @@ as $$
 with params as (
   select
     greatest(coalesce(p_page, 1), 1) as page_no,
-    least(greatest(coalesce(p_page_size, 15), 1), 50) as page_size,
+    least(greatest(coalesce(p_page_size, 16), 1), 50) as page_size,
     nullif(btrim(p_query), '') as q,
     nullif(upper(btrim(p_state)), '') as state_q,
     nullif(btrim(p_city), '') as city_q,

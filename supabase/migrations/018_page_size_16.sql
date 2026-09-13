@@ -1,4 +1,4 @@
--- FULLSEND V16.6.1 - separação real de VIP/DESTAQUE da grade paginada
+-- FULLSEND V16.6.2 - mantém separação VIP/DESTAQUE e altera padrão para 16 cards por página
 -- Une anúncios FULLSEND + parceiros e devolve SOMENTE a página solicitada.
 -- Não cria tabelas duplicadas e usa exclusivamente as tabelas/colunas existentes.
 
