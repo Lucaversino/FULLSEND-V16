@@ -18,13 +18,16 @@ export default function ListingCard({ x }: { x: UnifiedListing }) {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const [detailDescription, setDetailDescription] = useState<string | null>(x.description || null)
+  const [detailFeatures, setDetailFeatures] = useState<string | null>(x.features || null)
+  const [detailImages, setDetailImages] = useState<string[]>(x.images || [])
+  const [localDetailLoaded, setLocalDetailLoaded] = useState(false)
   const [detailPhone, setDetailPhone] = useState<string | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const detailAttemptedRef = useRef(false)
   const images = useMemo(() => {
-    const values = [x.coverUrl, ...(x.images || [])].filter(Boolean) as string[]
-    return Array.from(new Set(values)).slice(0, 8)
-  }, [x.coverUrl, x.images])
+    const values = [x.coverUrl, ...detailImages].filter(Boolean) as string[]
+    return Array.from(new Set(values)).slice(0, 12)
+  }, [x.coverUrl, detailImages])
 
   useEffect(() => {
     if (!open) return
@@ -41,6 +44,38 @@ export default function ListingCard({ x }: { x: UnifiedListing }) {
       window.removeEventListener('keydown', onKey)
     }
   }, [open, images.length])
+
+
+  useEffect(() => {
+    if (!open || localDetailLoaded) return
+
+    const controller = new AbortController()
+    let cancelled = false
+    setDetailLoading(true)
+
+    fetch(`/api/listing-detail?kind=${encodeURIComponent(x.kind)}&id=${encodeURIComponent(x.id)}`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then(async (r) => {
+        if (!r.ok) return null
+        return r.json().catch(() => null)
+      })
+      .then((data) => {
+        if (cancelled || !data) return
+        if (Array.isArray(data.images)) setDetailImages(data.images.filter((u: unknown) => typeof u === 'string'))
+        if (typeof data.description === 'string' && data.description.trim()) setDetailDescription(data.description.trim())
+        if (typeof data.features === 'string' && data.features.trim()) setDetailFeatures(data.features.trim())
+        setLocalDetailLoaded(true)
+      })
+      .catch(() => null)
+      .finally(() => { if (!cancelled) setDetailLoading(false) })
+
+    return () => {
+      cancelled = true
+      controller.abort()
+    }
+  }, [open, localDetailLoaded, x.id, x.kind])
 
   useEffect(() => {
     if (!open || !external || detailDescription || detailAttemptedRef.current) return
@@ -152,7 +187,7 @@ export default function ListingCard({ x }: { x: UnifiedListing }) {
                 <span><MapPin size={15}/><b>{x.city || 'Brasil'}{x.state ? ` / ${x.state}` : ''}</b></span>
               </div>
 
-              {x.features ? <p className="quick-features">{x.features}</p> : null}
+              {detailFeatures ? <p className="quick-features">{detailFeatures}</p> : null}
 
               <div className="quick-description-block">
                 <h3>DESCRIÇÃO DO ANUNCIANTE</h3>

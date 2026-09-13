@@ -87,6 +87,7 @@ export default function SearchBar({
 
     // Ao mudar localização, volta para a primeira página.
     sp.delete('pagina')
+    sp.delete('page')
 
     const query = sp.toString()
     router.replace(query ? `${target}?${query}` : target,{scroll:false})

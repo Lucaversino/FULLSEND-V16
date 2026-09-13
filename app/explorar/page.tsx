@@ -1,10 +1,10 @@
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
-import { fetchGeckoListings, fetchLoweredStyleCandidates } from '@/lib/supabase/data'
-import ListingCard from '@/components/ListingCard'
 import SearchBar from '@/components/SearchBar'
 import StyleBannerButtons from '@/components/StyleBannerButtons'
-import { fromGecko, fromFullsend, type UnifiedListing } from '@/lib/listings'
+import PaginatedListings from '@/components/PaginatedListings'
+import type { UnifiedListing } from '@/lib/listings'
+import ListingLoadError from '@/components/ListingLoadError'
+import { fetchPublicListingsPage, ITEMS_PER_PAGE } from '@/lib/supabase/public-listings'
 import { Filter, RotateCcw } from 'lucide-react'
 import StateCitySelect from '@/components/StateCitySelect'
 
@@ -17,7 +17,7 @@ function num(v?: string) {
   return Number.isFinite(n) ? n : undefined
 }
 
-const PAGE_SIZE = 9
+const PAGE_SIZE = ITEMS_PER_PAGE
 
 function shuffleListings<T>(items: T[]) {
   const copy = [...items]
@@ -128,9 +128,9 @@ function FilterFields({ p, base }:{ p:Record<string,string|undefined>, base:stri
 
     <div className="filter-group">
       <label>Ordenar por</label>
-      <select name="ordem" defaultValue={p.ordem || 'random'}>
-        <option value="random">Aleatório</option>
+      <select name="ordem" defaultValue={p.ordem || 'recent'}>
         <option value="recent">Mais recentes</option>
+        <option value="random">Aleatório</option>
         <option value="price-asc">Menor preço</option>
         <option value="price-desc">Maior preço</option>
         <option value="year-desc">Ano mais novo</option>
@@ -296,112 +296,62 @@ function applyStyleFilter(data: UnifiedListing[], style?: string) {
 
 export default async function Explorar({searchParams}:{searchParams:Promise<Record<string,string|undefined>>}){
   const p = await searchParams
-  const authClient = await createClient()
-
   const q = p.q?.replace(/[,%()]/g, ' ').trim()
   const city = p.cidade?.trim()
   const state = p.estado?.trim().toUpperCase()
-  const priceMin = num(p.precoMin)
-  const priceMax = num(p.precoMax)
+  const requestedPage = Math.max(1, Math.trunc(num(p.page || p.pagina) || 1))
 
-  let own = authClient
-    .from('listings')
-    .select('*')
-    .eq('status','active')
-    .order('created_at',{ascending:false})
-    .limit(1000)
+  let result = await fetchPublicListingsPage({
+    page: requestedPage,
+    query: q,
+    city,
+    state,
+    category: p.categoria,
+    brand: p.marca,
+    model: p.modelo,
+    yearMin: num(p.anoMin),
+    yearMax: num(p.anoMax),
+    kmMin: num(p.kmMin),
+    kmMax: num(p.kmMax),
+    priceMin: num(p.precoMin),
+    priceMax: num(p.precoMax),
+    fuel: p.combustivel,
+    transmission: p.cambio,
+    style: p.estilo,
+    sort: p.ordem || 'recent',
+  })
 
-  if(q) own = own.or(`title.ilike.%${q}%,description.ilike.%${q}%,city.ilike.%${q}%`)
-  if(p.categoria) own = own.eq('category_slug',p.categoria)
-  if(city) own = own.ilike('city',`%${city}%`)
-  if(state) own = own.eq('state',state)
-  if(priceMin !== undefined) own = own.gte('price',priceMin)
-  if(priceMax !== undefined) own = own.lte('price',priceMax)
+  const totalPages = Math.max(1, Math.ceil(result.total / PAGE_SIZE))
+  let currentPage = Math.min(requestedPage, totalPages)
 
-  const [geckoRes, ownRes] = await Promise.all([
-    p.estilo === 'rebaixado'
-      ? fetchLoweredStyleCandidates({
-          city,
-          state,
-          brand: p.marca,
-          model: p.modelo,
-          yearMin: num(p.anoMin),
-          yearMax: num(p.anoMax),
-          kmMin: num(p.kmMin),
-          kmMax: num(p.kmMax),
-          priceMin,
-          priceMax,
-          fuel: p.combustivel,
-          transmission: p.cambio,
-          sort: p.ordem,
-        })
-      : fetchGeckoListings({
-          limit: 1000,
-          query: q,
-          city,
-          state,
-          brand: p.marca,
-          model: p.modelo,
-          yearMin: num(p.anoMin),
-          yearMax: num(p.anoMax),
-          kmMin: num(p.kmMin),
-          kmMax: num(p.kmMax),
-          priceMin,
-          priceMax,
-          fuel: p.combustivel,
-          transmission: p.cambio,
-          sort: p.ordem,
-        }),
-    own,
-  ])
-
-  const ownRows = ownRes.data || []
-  const sellerIds = Array.from(new Set(ownRows.map((x:any)=>x.user_id).filter(Boolean)))
-  const sellerRes = sellerIds.length
-    ? await authClient.from('profiles').select('id,name,avatar_url,badge').in('id',sellerIds)
-    : { data: [] as any[] }
-  const sellerMap = new Map((sellerRes.data||[]).map((x:any)=>[x.id,x]))
-
-  let data:UnifiedListing[] = [
-    ...geckoRes.data.map(fromGecko),
-    ...ownRows.map((x:any)=>fromFullsend({...x,seller_profile:sellerMap.get(x.user_id)||null})),
-  ]
-
-  // Na busca inteligente de rebaixados, respeita também o texto principal.
-  if (p.estilo === 'rebaixado' && q) {
-    const qn = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    data = data.filter((item) => normalizedSearchText(item).includes(qn))
+  if (!result.error && result.total > 0 && requestedPage > totalPages) {
+    result = await fetchPublicListingsPage({
+      page: totalPages,
+      query: q,
+      city,
+      state,
+      category: p.categoria,
+      brand: p.marca,
+      model: p.modelo,
+      yearMin: num(p.anoMin),
+      yearMax: num(p.anoMax),
+      kmMin: num(p.kmMin),
+      kmMax: num(p.kmMax),
+      priceMin: num(p.precoMin),
+      priceMax: num(p.precoMax),
+      fuel: p.combustivel,
+      transmission: p.cambio,
+      style: p.estilo,
+      sort: p.ordem || 'recent',
+    })
+    currentPage = totalPages
   }
 
-  // Categoria precisa valer para TODAS as origens. Os anúncios importados da
-  // Gecko trazem a categoria da OLX; os anúncios FULLSEND usam category_slug.
-  // Assim, ao selecionar "Carros", nenhum anúncio de outra categoria entra.
-  if (p.categoria) {
-    data = data.filter((item) => item.categorySlug === p.categoria)
-  }
-
-  data = applyStyleFilter(data, p.estilo)
-
-  // Native FULLSEND ads do not yet have structured vehicle fields in the old schema.
-  // When advanced vehicle filters are active, keep results precise by excluding rows
-  // that cannot be evaluated reliably.
-  const advancedVehicleFilter = Boolean(p.marca || p.modelo || p.anoMin || p.anoMax || p.kmMin || p.kmMax || p.combustivel || p.cambio)
-  if (advancedVehicleFilter) data = data.filter(x => x.kind === 'gecko')
-
-  const sort = p.ordem || 'random'
-  if (sort === 'random') data = shuffleListings(data)
-  if (sort === 'price-asc') data.sort((a,b)=>(a.price ?? Number.MAX_SAFE_INTEGER)-(b.price ?? Number.MAX_SAFE_INTEGER))
-  if (sort === 'price-desc') data.sort((a,b)=>(b.price ?? -1)-(a.price ?? -1))
-  if (sort === 'year-desc') data.sort((a,b)=>(b.year ?? -1)-(a.year ?? -1))
-  if (sort === 'km-asc') data.sort((a,b)=>(a.mileage ?? Number.MAX_SAFE_INTEGER)-(b.mileage ?? Number.MAX_SAFE_INTEGER))
-
-  const totalResults = data.length
-  const totalPages = Math.max(1, Math.ceil(totalResults / PAGE_SIZE))
-  const requestedPage = Math.max(1, Math.trunc(num(p.pagina) || 1))
-  const currentPage = Math.min(requestedPage, totalPages)
-  const startIndex = (currentPage - 1) * PAGE_SIZE
-  const pageData = data.slice(startIndex, startIndex + PAGE_SIZE)
-  const pages = visiblePages(currentPage, totalPages)
+  const hasFilters = Boolean(
+    p.q || p.estilo || p.estado || p.cidade || p.categoria || p.marca || p.modelo ||
+    p.precoMin || p.precoMax || p.anoMin || p.anoMax || p.kmMin || p.kmMax ||
+    p.combustivel || p.cambio
+  )
 
   return <main className="section explore-page">
     <div className="container">
@@ -414,28 +364,14 @@ export default async function Explorar({searchParams}:{searchParams:Promise<Reco
 
       <div className="explore-layout">
         <FilterSidebar p={p}/>
-        <section className="explore-results">
+        <section id="resultados" className="explore-results">
           <div className="results-toolbar">
-            <div className="result-count"><strong>{totalResults}</strong> resultados <span>• página {currentPage} de {totalPages}</span></div>
-            {(p.estilo || p.estado || p.cidade || p.marca || p.modelo || p.precoMin || p.precoMax || p.anoMin || p.anoMax || p.kmMin || p.kmMax || p.combustivel || p.cambio) ? <span className="filters-active">FILTROS ATIVOS</span> : null}
+            <div className="result-count"><strong>{result.total.toLocaleString('pt-BR')}</strong> resultados <span>• página {currentPage} de {totalPages}</span></div>
+            {hasFilters ? <span className="filters-active">FILTROS ATIVOS</span> : null}
           </div>
-          {geckoRes.error ? <div className="data-warning"><strong>Não foi possível carregar os anúncios importados.</strong><span>{geckoRes.error}</span></div> : null}
-          {totalResults ? <>
-            <div className="listing-grid explore-grid">{pageData.map(x=><ListingCard key={`${x.kind}-${x.id}`} x={x}/>)}</div>
-            {totalPages > 1 ? <nav className="manual-pagination" aria-label="Paginação dos anúncios">
-              <Link className={`page-arrow ${currentPage === 1 ? 'disabled' : ''}`} aria-disabled={currentPage===1} href={pageHref('/explorar',p,Math.max(1,currentPage-1))}>‹</Link>
-              <div className="page-numbers">
-                {pages.map((n,i)=>{
-                  const prev = pages[i-1]
-                  return <span key={n} className="page-slot">
-                    {prev && n-prev>1 ? <span className="page-ellipsis">…</span> : null}
-                    <Link className={`page-number ${n===currentPage?'active':''}`} href={pageHref('/explorar',p,n)}>{n}</Link>
-                  </span>
-                })}
-              </div>
-              <Link className={`page-arrow ${currentPage === totalPages ? 'disabled' : ''}`} aria-disabled={currentPage===totalPages} href={pageHref('/explorar',p,Math.min(totalPages,currentPage+1))}>›</Link>
-            </nav> : null}
-          </> : <div className="empty-state"><h3>Nenhum resultado</h3><p>Ajuste ou limpe os filtros para ampliar a busca.</p></div>}
+          {result.error ? <ListingLoadError message={result.error}/> : result.total ? (
+            <PaginatedListings items={result.data} total={result.total} currentPage={currentPage} totalPages={totalPages} pageSize={PAGE_SIZE}/>
+          ) : <div className="empty-state"><h3>Nenhum anúncio encontrado.</h3><p>Ajuste ou limpe os filtros para ampliar a busca.</p></div>}
         </section>
       </div>
     </div>

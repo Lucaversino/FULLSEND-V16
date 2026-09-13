@@ -1,13 +1,14 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { fetchGeckoListings, fetchLoweredStyleCandidates } from '@/lib/supabase/data'
-import ListingCard from '@/components/ListingCard'
 import SearchBar from '@/components/SearchBar'
 import BrandCarousel from '@/components/BrandCarousel'
 import StyleBannerButtons from '@/components/StyleBannerButtons'
 import FeaturedShowcase from '@/components/FeaturedShowcase'
 import StateCitySelect from '@/components/StateCitySelect'
 import { fromGecko, fromFullsend, type UnifiedListing } from '@/lib/listings'
+import PaginatedListings from '@/components/PaginatedListings'
+import ListingLoadError from '@/components/ListingLoadError'
+import { fetchPublicListingsPage, ITEMS_PER_PAGE } from '@/lib/supabase/public-listings'
 import { Filter, RotateCcw } from 'lucide-react'
 import { expirePromotions } from '@/lib/promotion-payments'
 
@@ -20,7 +21,7 @@ function num(v?: string) {
   return Number.isFinite(n) ? n : undefined
 }
 
-const PAGE_SIZE = 9
+const PAGE_SIZE = ITEMS_PER_PAGE
 
 function shuffleListings<T>(items: T[]) {
   const copy = [...items]
@@ -131,9 +132,9 @@ function FilterFields({ p, base }:{ p:Record<string,string|undefined>, base:stri
 
     <div className="filter-group">
       <label>Ordenar por</label>
-      <select name="ordem" defaultValue={p.ordem || 'random'}>
-        <option value="random">Aleatório</option>
+      <select name="ordem" defaultValue={p.ordem || 'recent'}>
         <option value="recent">Mais recentes</option>
+        <option value="random">Aleatório</option>
         <option value="price-asc">Menor preço</option>
         <option value="price-desc">Maior preço</option>
         <option value="year-desc">Ano mais novo</option>
@@ -307,34 +308,70 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
   const state = p.estado?.trim().toUpperCase()
   const priceMin = num(p.precoMin)
   const priceMax = num(p.precoMax)
+  const requestedPage = Math.max(1, Math.trunc(num(p.page || p.pagina) || 1))
 
-  let own = authClient
-    .from('listings')
-    .select('*')
-    .eq('status','active')
-    .order('created_at',{ascending:false})
-    .limit(1000)
+  let result = await fetchPublicListingsPage({
+    page: requestedPage,
+    query: q,
+    city,
+    state,
+    category: p.categoria,
+    brand: p.marca,
+    model: p.modelo,
+    yearMin: num(p.anoMin),
+    yearMax: num(p.anoMax),
+    kmMin: num(p.kmMin),
+    kmMax: num(p.kmMax),
+    priceMin,
+    priceMax,
+    fuel: p.combustivel,
+    transmission: p.cambio,
+    style: p.estilo,
+    sort: p.ordem || 'recent',
+  })
 
-  if(q) own = own.or(`title.ilike.%${q}%,description.ilike.%${q}%,city.ilike.%${q}%`)
-  if(p.categoria) own = own.eq('category_slug',p.categoria)
-  if(city) own = own.ilike('city',`%${city}%`)
-  if(state) own = own.eq('state',state)
-  if(priceMin !== undefined) own = own.gte('price',priceMin)
-  if(priceMax !== undefined) own = own.lte('price',priceMax)
+  let totalPages = Math.max(1, Math.ceil(result.total / PAGE_SIZE))
+  let currentPage = Math.min(requestedPage, totalPages)
 
+  // URL antiga ou compartilhada apontando para uma página além do total:
+  // busca somente a última página válida, sem carregar todos os anúncios.
+  if (!result.error && result.total > 0 && requestedPage > totalPages) {
+    result = await fetchPublicListingsPage({
+      page: totalPages,
+      query: q,
+      city,
+      state,
+      category: p.categoria,
+      brand: p.marca,
+      model: p.modelo,
+      yearMin: num(p.anoMin),
+      yearMax: num(p.anoMax),
+      kmMin: num(p.kmMin),
+      kmMax: num(p.kmMax),
+      priceMin,
+      priceMax,
+      fuel: p.combustivel,
+      transmission: p.cambio,
+      style: p.estilo,
+      sort: p.ordem || 'recent',
+    })
+    currentPage = totalPages
+  }
+
+  // O carrossel de Destaques/VIP é uma coleção pequena e independente da paginação
+  // principal. Mantemos a regra atual, com limite de segurança no banco.
   let promotedOwnQuery = authClient
     .from('listings')
-    .select('*')
+    .select('id,user_id,category_slug,title,slug,description,price,city,state,cover_url,media,tags,status,source,external_url,is_featured,is_vip,created_at')
     .eq('status','active')
     .or('is_featured.eq.true,is_vip.eq.true')
 
   let promotedGeckoQuery = authClient
     .from('gecko_listings')
-    .select('*')
+    .select('id,title,price,city,state,image_url,images,external_url,brand,model,year,mileage,fuel,transmission,features,category,category_id,import_search_category,status,listed_at,imported_at,is_featured,is_vip,raw_data,ai_rebaixado,ai_roda_grande,ai_stance,ai_style_score,ai_confidence,ai_reason,ai_tags,ai_analyzed_at,ai_manual_rebaixado')
     .eq('status','active')
     .or('is_featured.eq.true,is_vip.eq.true')
 
-  // Quando o usuário escolhe localização, até o carrossel de destaque respeita.
   if(city) {
     promotedOwnQuery = promotedOwnQuery.ilike('city', `%${city}%`)
     promotedGeckoQuery = promotedGeckoQuery.ilike('city', `%${city}%`)
@@ -343,71 +380,14 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
     promotedOwnQuery = promotedOwnQuery.eq('state', state)
     promotedGeckoQuery = promotedGeckoQuery.eq('state', state)
   }
-  if (p.categoria) {
-    promotedOwnQuery = promotedOwnQuery.eq('category_slug', p.categoria)
-  }
+  if (p.categoria) promotedOwnQuery = promotedOwnQuery.eq('category_slug', p.categoria)
+  if(p.marca) promotedGeckoQuery = promotedGeckoQuery.ilike('brand', `%${p.marca}%`)
 
-  // Marca é estruturada nos anúncios Gecko. Nos anúncios FULLSEND antigos não há
-  // campo de marca confiável, então ao filtrar marca mostramos somente os que
-  // conseguimos validar corretamente.
-  if(p.marca) {
-    promotedGeckoQuery = promotedGeckoQuery.ilike('brand', `%${p.marca}%`)
-  }
-
-  const [geckoRes, ownRes, promotedOwnRes, promotedGeckoRes] = await Promise.all([
-    p.estilo === 'rebaixado'
-      ? fetchLoweredStyleCandidates({
-          city,
-          state,
-          brand: p.marca,
-          model: p.modelo,
-          yearMin: num(p.anoMin),
-          yearMax: num(p.anoMax),
-          kmMin: num(p.kmMin),
-          kmMax: num(p.kmMax),
-          priceMin,
-          priceMax,
-          fuel: p.combustivel,
-          transmission: p.cambio,
-          sort: p.ordem,
-        })
-      : fetchGeckoListings({
-          limit: 1000,
-          query: q,
-          city,
-          state,
-          brand: p.marca,
-          model: p.modelo,
-          yearMin: num(p.anoMin),
-          yearMax: num(p.anoMax),
-          kmMin: num(p.kmMin),
-          kmMax: num(p.kmMax),
-          priceMin,
-          priceMax,
-          fuel: p.combustivel,
-          transmission: p.cambio,
-          sort: p.ordem,
-        }),
-    own,
-    promotedOwnQuery.order('created_at',{ascending:false}).limit(1000),
-    promotedGeckoQuery.order('imported_at',{ascending:false}).limit(1000),
+  const [promotedOwnRes,promotedGeckoRes] = await Promise.all([
+    promotedOwnQuery.order('created_at',{ascending:false}).limit(60),
+    promotedGeckoQuery.order('imported_at',{ascending:false}).limit(60),
   ])
 
-  const ownRows = ownRes.data || []
-  const sellerIds = Array.from(new Set(ownRows.map((x:any)=>x.user_id).filter(Boolean)))
-  const sellerRes = sellerIds.length
-    ? await authClient.from('profiles').select('id,name,avatar_url,badge').in('id',sellerIds)
-    : { data: [] as any[] }
-  const sellerMap = new Map((sellerRes.data||[]).map((x:any)=>[x.id,x]))
-
-  let data:UnifiedListing[] = [
-    ...geckoRes.data.map(fromGecko),
-    ...ownRows.map((x:any)=>fromFullsend({...x,seller_profile:sellerMap.get(x.user_id)||null})),
-  ]
-
-  // O painel pode marcar quantos anúncios quiser como Destaque/VIP.
-  // A home busca essa coleção separadamente dos resultados normais e o
-  // carrossel escolhe 10 aleatórios a cada abertura/atualização.
   const promotedOwnRows = promotedOwnRes.data || []
   const promotedSellerIds = Array.from(new Set(promotedOwnRows.map((x:any)=>x.user_id).filter(Boolean)))
   const promotedSellerRes = promotedSellerIds.length
@@ -420,43 +400,11 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
     ...(p.marca ? [] : promotedOwnRows.map((x:any)=>fromFullsend({...x,seller_profile:promotedSellerMap.get(x.user_id)||null}))),
   ].filter((item) => !p.categoria || item.categorySlug === p.categoria))
 
-  // Na busca inteligente de rebaixados, respeita também o texto principal.
-  if (p.estilo === 'rebaixado' && q) {
-    const qn = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    data = data.filter((item) => normalizedSearchText(item).includes(qn))
-  }
-
-  // Categoria precisa valer para TODAS as origens. Os anúncios importados da
-  // Gecko trazem a categoria da OLX; os anúncios FULLSEND usam category_slug.
-  // Assim, ao selecionar "Carros", nenhum anúncio de outra categoria entra.
-  if (p.categoria) {
-    data = data.filter((item) => item.categorySlug === p.categoria)
-  }
-
-  // Filtro especial do FULLSEND: Turbo, Rebaixado e Antigos.
-  // "Antigos" segue a regra pedida: carros com ano abaixo de 2008 (até 2007).
-  data = applyStyleFilter(data, p.estilo)
-
-  // Native FULLSEND ads do not yet have structured vehicle fields in the old schema.
-  // When advanced vehicle filters are active, keep results precise by excluding rows
-  // that cannot be evaluated reliably.
-  const advancedVehicleFilter = Boolean(p.marca || p.modelo || p.anoMin || p.anoMax || p.kmMin || p.kmMax || p.combustivel || p.cambio)
-  if (advancedVehicleFilter) data = data.filter(x => x.kind === 'gecko')
-
-  const sort = p.ordem || 'random'
-  if (sort === 'random') data = shuffleListings(data)
-  if (sort === 'price-asc') data.sort((a,b)=>(a.price ?? Number.MAX_SAFE_INTEGER)-(b.price ?? Number.MAX_SAFE_INTEGER))
-  if (sort === 'price-desc') data.sort((a,b)=>(b.price ?? -1)-(a.price ?? -1))
-  if (sort === 'year-desc') data.sort((a,b)=>(b.year ?? -1)-(a.year ?? -1))
-  if (sort === 'km-asc') data.sort((a,b)=>(a.mileage ?? Number.MAX_SAFE_INTEGER)-(b.mileage ?? Number.MAX_SAFE_INTEGER))
-
-  const totalResults = data.length
-  const totalPages = Math.max(1, Math.ceil(totalResults / PAGE_SIZE))
-  const requestedPage = Math.max(1, Math.trunc(num(p.pagina) || 1))
-  const currentPage = Math.min(requestedPage, totalPages)
-  const startIndex = (currentPage - 1) * PAGE_SIZE
-  const pageData = data.slice(startIndex, startIndex + PAGE_SIZE)
-  const pages = visiblePages(currentPage, totalPages)
+  const hasFilters = Boolean(
+    p.q || p.estilo || p.estado || p.cidade || p.categoria || p.marca || p.modelo ||
+    p.precoMin || p.precoMax || p.anoMin || p.anoMax || p.kmMin || p.kmMax ||
+    p.combustivel || p.cambio
+  )
 
   return <main className="section explore-page home-market-page">
     <div className="container">
@@ -468,26 +416,19 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
         <FilterSidebar p={p}/>
         <section id="resultados" className="explore-results">
           <div className="results-toolbar">
-            <div className="result-count"><strong>{totalResults}</strong> resultados <span>• página {currentPage} de {totalPages}</span></div>
-            {(p.estilo || p.estado || p.cidade || p.marca || p.modelo || p.precoMin || p.precoMax || p.anoMin || p.anoMax || p.kmMin || p.kmMax || p.combustivel || p.cambio) ? <span className="filters-active">FILTROS ATIVOS</span> : null}
+            <div className="result-count"><strong>{result.total.toLocaleString('pt-BR')}</strong> resultados <span>• página {currentPage} de {totalPages}</span></div>
+            {hasFilters ? <span className="filters-active">FILTROS ATIVOS</span> : null}
           </div>
-          {geckoRes.error ? <div className="data-warning"><strong>Não foi possível carregar os anúncios importados.</strong><span>{geckoRes.error}</span></div> : null}
-          {totalResults ? <>
-            <div className="listing-grid explore-grid">{pageData.map(x=><ListingCard key={`${x.kind}-${x.id}`} x={x}/>)}</div>
-            {totalPages > 1 ? <nav className="manual-pagination" aria-label="Paginação dos anúncios">
-              <Link className={`page-arrow ${currentPage === 1 ? 'disabled' : ''}`} aria-disabled={currentPage===1} href={pageHref('/',p,Math.max(1,currentPage-1))}>‹</Link>
-              <div className="page-numbers">
-                {pages.map((n,i)=>{
-                  const prev = pages[i-1]
-                  return <span key={n} className="page-slot">
-                    {prev && n-prev>1 ? <span className="page-ellipsis">…</span> : null}
-                    <Link className={`page-number ${n===currentPage?'active':''}`} href={pageHref('/',p,n)}>{n}</Link>
-                  </span>
-                })}
-              </div>
-              <Link className={`page-arrow ${currentPage === totalPages ? 'disabled' : ''}`} aria-disabled={currentPage===totalPages} href={pageHref('/',p,Math.min(totalPages,currentPage+1))}>›</Link>
-            </nav> : null}
-          </> : <div className="empty-state"><h3>Nenhum resultado</h3><p>Ajuste ou limpe os filtros para ampliar a busca.</p></div>}
+
+          {result.error ? <ListingLoadError message={result.error}/> : result.total ? (
+            <PaginatedListings
+              items={result.data}
+              total={result.total}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={PAGE_SIZE}
+            />
+          ) : <div className="empty-state"><h3>Nenhum anúncio encontrado.</h3><p>Ajuste ou limpe os filtros para ampliar a busca.</p></div>}
         </section>
       </div>
     </div>

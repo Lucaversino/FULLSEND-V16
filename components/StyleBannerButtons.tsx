@@ -5,7 +5,7 @@ type Params = Record<string, string | undefined>
 function hrefFor(base: string, params: Params, style: string) {
   const qs = new URLSearchParams()
   Object.entries(params).forEach(([key, value]) => {
-    if (!value || key === 'pagina' || key === 'estilo') return
+    if (!value || key === 'pagina' || key === 'page' || key === 'estilo') return
     qs.set(key, value)
   })
   if (style) qs.set('estilo', style)
