@@ -114,7 +114,26 @@ export default function UserListingActions({listing}:{listing:any}){
       const state=String(fd.get('state')||'').trim().toUpperCase().slice(0,2)
       const whatsapp=String(fd.get('whatsapp')||'').trim()
       const status=String(fd.get('status')||'active')
-      const tags=String(fd.get('tags')||'').split(',').map(x=>x.trim().toUpperCase()).filter(Boolean).slice(0,8)
+      const tags=String(fd.get('tags')||'').split(',').map(x=>x.trim().toUpperCase()).filter(Boolean).slice(0,12)
+      const isCar=category_slug==='carros'
+      const brand=String(fd.get('brand')||'').trim()
+      const model=String(fd.get('model')||'').trim()
+      const yearText=String(fd.get('year')||'').trim()
+      const mileageText=String(fd.get('mileage')||'').trim()
+      const year=yearText?Number(yearText):null
+      const mileage=mileageText?Number(mileageText):null
+      const vehicle_styles=fd.getAll('vehicle_styles').map(x=>String(x)).filter(Boolean)
+      const fuel=String(fd.get('fuel')||'').trim()||null
+      const transmission=String(fd.get('transmission')||'').trim()||null
+      const color=String(fd.get('color')||'').trim()||null
+      const body_type=String(fd.get('body_type')||'').trim()||null
+      const engine=String(fd.get('engine')||'').trim()||null
+      const powerText=String(fd.get('power_cv')||'').trim()
+      const doorsText=String(fd.get('doors')||'').trim()
+      const power_cv=powerText?Number(powerText):null
+      const doors=doorsText?Number(doorsText):null
+      const condition=String(fd.get('condition')||'').trim()||null
+      const features=String(fd.get('features')||'').trim()||null
 
       if(!title){throw new Error('Informe o título do anúncio.')}
       if(!category_slug){throw new Error('Selecione a categoria.')}
@@ -151,6 +170,20 @@ export default function UserListingActions({listing}:{listing:any}){
         whatsapp,
         tags,
         status,
+        brand:isCar?brand:null,
+        model:isCar?model:null,
+        year:isCar?year:null,
+        mileage:isCar?mileage:null,
+        fuel:isCar?fuel:null,
+        transmission:isCar?transmission:null,
+        vehicle_styles:isCar?vehicle_styles:[],
+        color:isCar?color:null,
+        body_type:isCar?body_type:null,
+        engine:isCar?engine:null,
+        power_cv:isCar?power_cv:null,
+        doors:isCar?doors:null,
+        condition:isCar?condition:null,
+        features,
         cover_url:mediaUrls[0]||null,
         media:mediaUrls,
         updated_at:new Date().toISOString(),
@@ -231,6 +264,31 @@ export default function UserListingActions({listing}:{listing:any}){
               <div className="user-edit-section-head"><Tag size={17}/><div><b>TAGS E BUSCA</b><small>Palavras que ajudam seu anúncio a ser encontrado.</small></div></div>
               <label>Tags (até 8, separadas por vírgula)<input name="tags" defaultValue={Array.isArray(listing.tags)?listing.tags.join(', '):''} placeholder="TURBO, FUELTECH, FORJADO"/></label>
             </section>
+
+            {listing.category_slug==='carros'?<section className="user-edit-section">
+              <div className="user-edit-section-head"><Car size={17}/><div><b>FICHA TÉCNICA DO VEÍCULO</b><small>Dados usados na pesquisa e nos filtros do marketplace.</small></div></div>
+              <div className="user-edit-grid three">
+                <label>Marca<input name="brand" defaultValue={listing.brand||''} required/></label>
+                <label>Modelo<input name="model" defaultValue={listing.model||''} required/></label>
+                <label>Ano<input name="year" type="number" min="1900" max="2100" defaultValue={listing.year??''} required/></label>
+                <label>Quilometragem<input name="mileage" type="number" min="0" defaultValue={listing.mileage??''} required/></label>
+                <label>Combustível<select name="fuel" defaultValue={listing.fuel||''}><option value="">Selecione</option><option>Gasolina</option><option>Flex</option><option>Etanol</option><option>Diesel</option><option>Elétrico</option><option>Híbrido</option><option>GNV</option></select></label>
+                <label>Câmbio<select name="transmission" defaultValue={listing.transmission||''}><option value="">Selecione</option><option>Manual</option><option>Automático</option><option>Automatizado</option><option>CVT</option><option>DCT</option></select></label>
+                <label>Cor<input name="color" defaultValue={listing.color||''}/></label>
+                <label>Carroceria<input name="body_type" defaultValue={listing.body_type||''}/></label>
+                <label>Motor<input name="engine" defaultValue={listing.engine||''}/></label>
+                <label>Potência (cv)<input name="power_cv" type="number" min="0" defaultValue={listing.power_cv??''}/></label>
+                <label>Portas<input name="doors" type="number" min="2" max="6" defaultValue={listing.doors??''}/></label>
+                <label>Estado geral<input name="condition" defaultValue={listing.condition||''}/></label>
+                <div className="wide user-edit-style-options">
+                  <span>Estilo do veículo</span>
+                  <label><input type="checkbox" name="vehicle_styles" value="rebaixado" defaultChecked={Array.isArray(listing.vehicle_styles)&&listing.vehicle_styles.includes('rebaixado')}/><b>REBAIXADO</b></label>
+                  <label><input type="checkbox" name="vehicle_styles" value="turbo" defaultChecked={Array.isArray(listing.vehicle_styles)&&listing.vehicle_styles.includes('turbo')}/><b>TURBO</b></label>
+                  <label><input type="checkbox" name="vehicle_styles" value="antigo" defaultChecked={Array.isArray(listing.vehicle_styles)&&listing.vehicle_styles.includes('antigo')}/><b>ANTIGO</b></label>
+                </div>
+                <label className="wide">Equipamentos e modificações<textarea name="features" defaultValue={listing.features||''} rows={4}/></label>
+              </div>
+            </section>:null}
 
             <section className="user-edit-section">
               <div className="user-edit-section-head"><ImageIcon size={17}/><div><b>FOTOS E VÍDEOS</b><small>Até 15 arquivos. O primeiro item é a capa do anúncio.</small></div></div>

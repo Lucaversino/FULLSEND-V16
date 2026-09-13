@@ -3035,3 +3035,77 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
     font-size:15px!important;
   }
 }
+
+
+/* =========================================================
+   FULLSEND V16.7 — formulário profissional de anúncio
+   ========================================================= */
+.announce-form-pro{display:grid;gap:18px}
+.announce-pro-section{border:1px solid #272a31;border-radius:18px;background:linear-gradient(180deg,#101115,#0b0c0f);padding:24px;box-shadow:0 16px 42px rgba(0,0,0,.18)}
+.announce-pro-head{display:flex;align-items:flex-start;gap:13px;margin-bottom:20px}
+.announce-pro-head>span{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;border:1px solid #5e171f;background:#211014;color:#ff3347;font-size:12px;font-weight:1000;flex:0 0 auto}
+.announce-pro-head h3{margin:2px 0 4px;font-size:16px;letter-spacing:.2px}
+.announce-pro-head p{margin:0;color:#858a93;font-size:11px}
+.announce-pro-label,.announce-pro-grid label{display:flex;flex-direction:column;gap:7px;font-size:10px;font-weight:900;letter-spacing:.55px;color:#9a9da5;text-transform:uppercase}
+.announce-pro-grid label>span,.announce-pro-label>span{display:flex;align-items:center;gap:6px}
+.announce-pro-grid{display:grid;gap:13px}
+.announce-pro-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.announce-pro-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.announce-pro-grid .wide{grid-column:1/-1}
+.announce-form-pro .field{width:100%;min-height:52px;border-radius:11px;border:1px solid #2a2e35;background:#0a0c0f;color:#fff;padding:13px 14px;outline:none;transition:.16s}
+.announce-form-pro textarea.field{min-height:120px;resize:vertical}
+.announce-form-pro .field:focus{border-color:#ee293d;box-shadow:0 0 0 3px rgba(238,41,61,.09)}
+.announce-style-block{margin-top:18px;border-top:1px solid #24272d;padding-top:18px}
+.announce-style-title{display:flex;gap:9px;align-items:flex-start;margin-bottom:12px}
+.announce-style-title>svg{color:#ff3347;margin-top:2px}
+.announce-style-title div{display:flex;flex-direction:column;gap:3px}
+.announce-style-title b{font-size:11px}
+.announce-style-title small{color:#777d87;font-size:10px}
+.announce-style-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+.announce-style-grid button{display:grid;grid-template-columns:38px 1fr auto;grid-template-areas:"icon title state" "icon desc state";gap:2px 10px;align-items:center;text-align:left;border:1px solid #2a2d34;background:#0a0c0f;border-radius:13px;padding:14px;color:#fff;cursor:pointer;transition:.18s}
+.announce-style-grid button>span{grid-area:icon;width:38px;height:38px;border-radius:10px;background:#17191e;display:grid;place-items:center;color:#a8abb3}
+.announce-style-grid button>span svg{width:18px}
+.announce-style-grid button>b{grid-area:title;font-size:11px}
+.announce-style-grid button>small{grid-area:desc;color:#747983;font-size:9px;line-height:1.3}
+.announce-style-grid button>em{grid-area:state;font-style:normal;font-size:8px;font-weight:1000;color:#656a73}
+.announce-style-grid button.active{border-color:#e82739;background:linear-gradient(135deg,#241014,#0d0e11);box-shadow:0 0 0 1px rgba(232,39,57,.15)}
+.announce-style-grid button.active>span{background:#e82739;color:#fff}
+.announce-style-grid button.active>em{color:#ff4f60}
+.announce-media-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.announce-media-item,.announce-upload-card{aspect-ratio:4/3;border-radius:12px;overflow:hidden;border:1px solid #2b2e35;background:#0a0c0f;position:relative}
+.announce-media-item img,.announce-media-item video{width:100%;height:100%;object-fit:cover;display:block}
+.announce-media-item>b{position:absolute;left:7px;bottom:7px;background:#ed2338;color:#fff;border-radius:7px;padding:5px 7px;font-size:8px}
+.announce-media-item>button{position:absolute;right:7px;top:7px;width:28px;height:28px;border-radius:50%;border:1px solid #4b2529;background:#170b0d;color:#fff;display:grid;place-items:center;cursor:pointer}
+.announce-upload-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;color:#dfe1e5;cursor:pointer;border-style:dashed}
+.announce-upload-card:hover{border-color:#e72a3d;background:#130c0e}
+.announce-upload-card b{font-size:9px}
+.announce-upload-card small{font-size:8px;color:#777d87}
+.announce-hidden-input{display:none}
+.announce-media-tip{margin-top:11px;display:flex;align-items:center;gap:7px;color:#767b85;font-size:10px}
+.announce-publish-panel{display:flex;align-items:center;justify-content:space-between;gap:18px;border:1px solid #30282b;background:linear-gradient(135deg,#151013,#0a0b0d);border-radius:16px;padding:17px 20px}
+.announce-publish-panel>div{display:flex;gap:10px;align-items:center}
+.announce-publish-panel>div>svg{color:#ff3347}
+.announce-publish-panel span{display:flex;flex-direction:column;gap:3px}
+.announce-publish-panel b{font-size:10px;letter-spacing:.6px}
+.announce-publish-panel small{font-size:9px;color:#777d87}
+.announce-pro-message{display:flex;align-items:center;gap:8px}
+.announce-pro-message.success{border-color:#1f6f49;color:#8ee6b5}
+.user-edit-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.user-edit-style-options{display:flex!important;flex-direction:row!important;align-items:center!important;gap:10px!important;flex-wrap:wrap}
+.user-edit-style-options>span{width:100%;font-size:9px;color:#888c95}
+.user-edit-style-options label{display:flex!important;flex-direction:row!important;align-items:center!important;gap:6px!important;border:1px solid #2b2d34;border-radius:9px;padding:9px 10px;background:#0d0e11}
+.native-vehicle-specs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:14px 0}
+.native-vehicle-specs span{display:flex;align-items:center;gap:7px;border:1px solid #292c32;background:#0b0c0f;border-radius:9px;padding:10px;font-size:10px;color:#bfc2c8}
+
+@media(max-width:900px){
+  .announce-pro-grid.three,.user-edit-grid.three{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .announce-media-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:650px){
+  .announce-pro-section{padding:17px}
+  .announce-pro-grid.two,.announce-pro-grid.three,.user-edit-grid.three{grid-template-columns:1fr}
+  .announce-style-grid{grid-template-columns:1fr}
+  .announce-media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .announce-publish-panel{align-items:stretch;flex-direction:column}
+  .announce-publish-panel .btn{width:100%}
+}

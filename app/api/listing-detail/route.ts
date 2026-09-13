@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('listings')
-    .select('id,cover_url,media,description,user_id')
+    .select('id,cover_url,media,description,features,user_id')
     .eq('id', id)
     .eq('status', 'active')
     .maybeSingle()
@@ -62,5 +62,5 @@ export async function GET(req: NextRequest) {
   const media = Array.isArray(data.media) ? data.media.filter((u: unknown) => typeof u === 'string') as string[] : []
   const images = Array.from(new Set([data.cover_url, ...media].filter(Boolean) as string[])).slice(0, 12)
 
-  return NextResponse.json({ images, description: data.description || null, features: null })
+  return NextResponse.json({ images, description: data.description || null, features: data.features || null })
 }

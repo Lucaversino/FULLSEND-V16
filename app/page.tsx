@@ -362,7 +362,7 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
   // principal. Mantemos a regra atual, com limite de segurança no banco.
   let promotedOwnQuery = authClient
     .from('listings')
-    .select('id,user_id,category_slug,title,slug,description,price,city,state,cover_url,media,tags,status,source,external_url,is_featured,is_vip,created_at')
+    .select('id,user_id,category_slug,title,slug,description,price,city,state,cover_url,media,tags,status,source,external_url,is_featured,is_vip,brand,model,year,mileage,fuel,transmission,vehicle_styles,features,engine,color,body_type,created_at')
     .eq('status','active')
     .or('is_featured.eq.true,is_vip.eq.true')
 

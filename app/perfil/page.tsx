@@ -64,7 +64,7 @@ export default async function Perfil(){
   const [{data:p},{data:a,error:adsError}]=await Promise.all([
     s.from('profiles').select('*').eq('id',user.id).maybeSingle(),
     s.from('listings')
-      .select('id,title,status,created_at,slug,is_featured,is_vip,cover_url,media,description,category_slug,tags,whatsapp,price,city,state')
+      .select('id,title,status,created_at,slug,is_featured,is_vip,cover_url,media,description,category_slug,tags,whatsapp,price,city,state,brand,model,year,mileage,fuel,transmission,vehicle_styles,color,body_type,engine,power_cv,doors,condition,features')
       .eq('user_id',user.id)
       .order('created_at',{ascending:false})
   ])

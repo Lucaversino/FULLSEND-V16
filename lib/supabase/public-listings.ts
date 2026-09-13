@@ -39,6 +39,7 @@ type RpcItem = {
   mileage: number | null
   fuel: string | null
   transmission: string | null
+  features?: string | null
   category_slug: string | null
   is_featured: boolean
   is_vip: boolean
@@ -67,6 +68,7 @@ function toUnified(row: RpcItem): UnifiedListing {
     mileage: row.mileage == null ? null : Number(row.mileage),
     fuel: row.fuel || null,
     transmission: row.transmission || null,
+    features: row.features || null,
     categorySlug: row.category_slug || null,
     rawCategory: row.category_slug || null,
     isFeatured: Boolean(row.is_featured),
