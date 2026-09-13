@@ -2963,3 +2963,75 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
   .real-pagination{justify-content:center;gap:14px}
   .real-pagination .page-arrow{min-width:42px}
 }
+
+
+/* =========================================================
+   FULLSEND V16.6.1 — cards menores na grade pública
+   Escopo: somente listagem normal; carrossel promocional intacto.
+   ========================================================= */
+.explore-results .listing-grid.explore-grid{
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:12px!important;
+}
+
+.explore-results .listing-grid.explore-grid .listing-card{
+  border-radius:13px!important;
+}
+
+.explore-results .listing-grid.explore-grid .listing-media{
+  aspect-ratio:16/9!important;
+}
+
+.explore-results .listing-grid.explore-grid .listing-body{
+  padding:11px 12px!important;
+}
+
+.explore-results .listing-grid.explore-grid .listing-body h3{
+  font-size:14px!important;
+  line-height:1.22!important;
+  min-height:34px!important;
+  margin-bottom:7px!important;
+}
+
+.explore-results .listing-grid.explore-grid .listing-price{
+  font-size:23px!important;
+  margin-bottom:8px!important;
+}
+
+.explore-results .listing-grid.explore-grid .listing-meta,
+.explore-results .listing-grid.explore-grid .listing-location{
+  font-size:10px!important;
+}
+
+.explore-results .listing-grid.explore-grid .listing-cta{
+  margin-top:9px!important;
+  padding-top:9px!important;
+  font-size:10px!important;
+}
+
+@media(max-width:1350px){
+  .explore-results .listing-grid.explore-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  }
+}
+
+@media(max-width:980px){
+  .explore-results .listing-grid.explore-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
+
+@media(max-width:560px){
+  .explore-results .listing-grid.explore-grid{
+    grid-template-columns:1fr!important;
+    gap:14px!important;
+  }
+
+  .explore-results .listing-grid.explore-grid .listing-body{
+    padding:12px!important;
+  }
+
+  .explore-results .listing-grid.explore-grid .listing-body h3{
+    font-size:15px!important;
+  }
+}
