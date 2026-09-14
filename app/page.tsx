@@ -11,6 +11,8 @@ import ListingLoadError from '@/components/ListingLoadError'
 import { fetchPublicListingsPage, ITEMS_PER_PAGE } from '@/lib/supabase/public-listings'
 import { Filter, RotateCcw } from 'lucide-react'
 import { expirePromotions } from '@/lib/promotion-payments'
+import HomeEventsCarousel from '@/components/events/HomeEventsCarousel'
+import EventsSideButton from '@/components/events/EventsSideButton'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -400,6 +402,17 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
     ...(p.marca ? [] : promotedOwnRows.map((x:any)=>fromFullsend({...x,seller_profile:promotedSellerMap.get(x.user_id)||null}))),
   ].filter((item) => !p.categoria || item.categorySlug === p.categoria))
 
+  const today=new Date().toISOString().slice(0,10)
+  const {data:homeEventsData}=await authClient
+    .from('events')
+    .select('id,slug,title,category,event_date,city,state,image_url,featured')
+    .eq('status','published')
+    .gte('event_date',today)
+    .order('featured',{ascending:false})
+    .order('event_date',{ascending:true})
+    .limit(18)
+  const homeEvents=(homeEventsData||[]) as any[]
+
   const hasFilters = Boolean(
     p.q || p.estilo || p.estado || p.cidade || p.categoria || p.marca || p.modelo ||
     p.precoMin || p.precoMax || p.anoMin || p.anoMax || p.kmMin || p.kmMax ||
@@ -411,6 +424,7 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
       <SearchBar target="/" initialQuery={p.q || ''} initialCategory={p.categoria || ''} initialState={p.estado || ''} initialCity={p.cidade || ''}/>
       <BrandCarousel />
       <FeaturedShowcase items={promotedListings}/>
+      <HomeEventsCarousel events={homeEvents} compact title="PRÓXIMOS EVENTOS"/>
 
       <div className="explore-layout">
         <FilterSidebar p={p}/>
@@ -431,6 +445,9 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
           ) : <div className="empty-state"><h3>Nenhum anúncio encontrado.</h3><p>Ajuste ou limpe os filtros para ampliar a busca.</p></div>}
         </section>
       </div>
+
+      <HomeEventsCarousel events={homeEvents} title="AGENDA AUTOMOTIVA FULLSEND"/>
     </div>
+    <EventsSideButton/>
   </main>
 }

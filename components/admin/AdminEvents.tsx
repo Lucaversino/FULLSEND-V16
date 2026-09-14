@@ -22,6 +22,8 @@ export default function AdminEvents(){
   const [editing,setEditing]=useState<Partial<E>|null>(null)
   const [importStatus,setImportStatus]=useState<'published'|'pending'>('published')
   const [importResult,setImportResult]=useState<any>(null)
+  const [importKeyword,setImportKeyword]=useState('encontro de carros')
+  const [importPages,setImportPages]=useState(1)
 
   async function load(){
     setBusy('load')
@@ -88,12 +90,31 @@ export default function AdminEvents(){
     setMsg(`${j.deleted||0} evento(s) excluído(s).`)
   }
 
-  async function importEvents(){
-    setBusy('import');setMsg('Importando Ticketmaster...');setImportResult(null)
-    const r=await fetch('/api/events/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:importStatus})})
-    const j=await r.json();setBusy('');setImportResult(j)
-    if(!r.ok){setMsg(j.errors?.join(' • ')||j.error||'Importação não configurada.');return}
-    setMsg(`Importação concluída: ${j.found} encontrados • ${j.imported} novos • ${j.updated} atualizados.`)
+  async function importEvents(batch=false){
+    setBusy(batch?'import-batch':'import')
+    setMsg(batch?'Importando pacote automotivo da Sympla via GeckoAPI...':'Buscando eventos na Sympla via GeckoAPI...')
+    setImportResult(null)
+
+    const r=await fetch('/api/events/import',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        status:importStatus,
+        keyword:importKeyword,
+        pages:importPages,
+        batch,
+      })
+    })
+    const j=await r.json().catch(()=>({}))
+    setBusy('')
+    setImportResult(j)
+
+    if(!r.ok){
+      setMsg(j.errors?.join(' • ')||j.error||'Importação GeckoAPI/Sympla não configurada.')
+      return
+    }
+
+    setMsg(`Sympla: ${j.found||0} encontrados • ${j.imported||0} novos • ${j.updated||0} atualizados.`)
     await load()
   }
 
@@ -115,13 +136,55 @@ export default function AdminEvents(){
       </div>
     </div>
 
-    <div className="admin-events-import">
-      <div><RefreshCw size={20}/><span><b>IMPORTAÇÃO TICKETMASTER</b><small>Brasil somente • sem eventos internacionais • TICKETMASTER_API_KEY fica apenas no servidor.</small></span></div>
-      <select value={importStatus} onChange={e=>setImportStatus(e.target.value as any)}><option value="published">Publicar automaticamente</option><option value="pending">Enviar para pendentes</option></select>
-      <button onClick={importEvents} disabled={busy==='import'}>{busy==='import'?'IMPORTANDO...':'IMPORTAR EVENTOS'}</button>
+    <div className="admin-events-import sympla-import">
+      <div className="admin-events-import-brand">
+        <RefreshCw size={20}/>
+        <span><b>IMPORTAÇÃO SYMPLA • GECKO API</b><small>Eventos brasileiros • usa a GECKO_API_KEY já configurada no FULLSEND.</small></span>
+      </div>
+
+      <div className="admin-events-import-controls">
+        <label>
+          <span>Busca</span>
+          <input value={importKeyword} onChange={e=>setImportKeyword(e.target.value)} placeholder="Ex.: encontro de carros"/>
+        </label>
+        <label>
+          <span>Páginas</span>
+          <select value={importPages} onChange={e=>setImportPages(Number(e.target.value))}>
+            <option value={1}>1 página</option>
+            <option value={2}>2 páginas</option>
+            <option value={3}>3 páginas</option>
+            <option value={4}>4 páginas</option>
+            <option value={5}>5 páginas</option>
+          </select>
+        </label>
+        <label>
+          <span>Destino</span>
+          <select value={importStatus} onChange={e=>setImportStatus(e.target.value as any)}>
+            <option value="published">Publicar automaticamente</option>
+            <option value="pending">Enviar para pendentes</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="admin-events-import-actions">
+        <button onClick={()=>importEvents(false)} disabled={busy==='import'||busy==='import-batch'}>
+          {busy==='import'?'IMPORTANDO...':'IMPORTAR BUSCA'}
+        </button>
+        <button className="batch" onClick={()=>importEvents(true)} disabled={busy==='import'||busy==='import-batch'}>
+          {busy==='import-batch'?'IMPORTANDO PACOTE...':'PACOTE AUTOMOTIVO'}
+        </button>
+      </div>
+      <small className="admin-events-credit-note">A GeckoAPI cobra por execução. “Pacote Automotivo” executa 8 buscas de 1 página.</small>
     </div>
 
-    {importResult?<div className="admin-event-import-result"><span>Encontrados <b>{importResult.found||0}</b></span><span>Importados <b>{importResult.imported||0}</b></span><span>Atualizados <b>{importResult.updated||0}</b></span><span>Já existiam <b>{importResult.existing||0}</b></span>{importResult.diagnostics?<><span>Brasil bruto <b>{importResult.diagnostics.brazilFound||0}</b></span><span>Modo <b>BRASIL SOMENTE</b></span></>:null}{importResult.errors?.length?<em>{importResult.errors.join(' • ')}</em>:null}</div>:null}
+    {importResult?<div className="admin-event-import-result">
+      <span>Encontrados <b>{importResult.found||0}</b></span>
+      <span>Importados <b>{importResult.imported||0}</b></span>
+      <span>Atualizados <b>{importResult.updated||0}</b></span>
+      <span>Já existiam <b>{importResult.existing||0}</b></span>
+      {importResult.diagnostics?<><span>Recebidos Gecko <b>{importResult.diagnostics.received||0}</b></span><span>Créditos estimados <b>{importResult.diagnostics.creditsEstimated||0}</b></span><span>Fonte <b>SYMPLA / BR</b></span></>:null}
+      {importResult.errors?.length?<em>{importResult.errors.join(' • ')}</em>:null}
+    </div>:null}
     {msg?<div className="admin-toast">{msg}</div>:null}
 
     <div className="admin-events-summary"><span><CalendarDays/>TOTAL <b>{events.length}</b></span><span className="pending">PENDENTES <b>{pending}</b></span></div>

@@ -1,0 +1,2 @@
+status=not_completed
+reason=npm install exceeded environment timeout; run npm run build before deploy

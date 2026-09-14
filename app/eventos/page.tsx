@@ -66,7 +66,7 @@ export default async function Eventos({searchParams}:{searchParams:Promise<Recor
     <div className="container">
       <div className="events-hero">
         <div><span className="section-kicker">FULLSEND CULTURE</span><h1>EVENTOS AUTOMOTIVOS</h1><p>Encontros, pista, projetos, som, clássicos e motorsport em um só lugar.</p></div>
-        <Link href="/eventos/adicionar" className="events-add-btn"><Plus size={17}/> ADICIONAR EVENTO</Link>
+        <Link href="/eventos/adicionar" className="events-add-btn"><Plus size={17}/> CRIAR EVENTO</Link>
       </div>
 
       <EventFilters/>

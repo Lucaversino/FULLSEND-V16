@@ -41,8 +41,10 @@ export async function GET(req:NextRequest){
   if(!gate.ok)return NextResponse.json({error:gate.error},{status:gate.status})
   const q=req.nextUrl.searchParams.get('q')?.trim()
   const status=req.nextUrl.searchParams.get('status')?.trim()
+  const source=req.nextUrl.searchParams.get('source')?.trim()
   let query=gate.admin.from('events').select('*').order('event_date',{ascending:true}).limit(500)
   if(status&&allowedStatus.includes(status))query=query.eq('status',status)
+  if(source)query=query.eq('source',source)
   if(q)query=query.or(`title.ilike.%${q.replace(/[,%()]/g,' ')}%,city.ilike.%${q.replace(/[,%()]/g,' ')}%,state.ilike.%${q.replace(/[,%()]/g,' ')}%`)
   const {data,error}=await query
   if(error)return NextResponse.json({error:error.message},{status:400})
