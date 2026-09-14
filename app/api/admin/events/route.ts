@@ -89,12 +89,16 @@ export async function DELETE(req:Request){
 
     if(error)return NextResponse.json({error:error.message},{status:400})
 
-    await gate.admin.from('audit_logs').insert({
+    const {error:auditError}=await gate.admin.from('audit_logs').insert({
       actor_id:gate.user.id,
       action:'admin_events_delete_all',
       entity:'events',
       data:{deleted:count||0}
-    }).catch(()=>null)
+    })
+
+    if(auditError){
+      console.warn('Falha ao registrar auditoria de exclusão em massa de eventos:',auditError.message)
+    }
 
     return NextResponse.json({success:true,deleted:count||0})
   }
