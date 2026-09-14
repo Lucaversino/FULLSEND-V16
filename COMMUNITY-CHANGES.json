@@ -1,0 +1,43 @@
+{
+  "version": "17.2 Comunidade",
+  "changed_existing_files": [
+    "app/page.tsx",
+    "components/events/EventAttendance.tsx",
+    "components/admin/AdminDashboard.tsx",
+    "app/perfil/page.tsx"
+  ],
+  "added_files": [
+    "package-lock.json",
+    "LEIA-ME-COMUNIDADE.md",
+    "public/fullsend-comunidade-button.png",
+    "supabase/migrations/026_fullsend_community.sql",
+    "lib/community/server.ts",
+    "lib/community/shared.ts",
+    "components/community/community.css",
+    "components/community/CommunityFeed.tsx",
+    "components/community/Composer.tsx",
+    "components/community/AdminCommunity.tsx",
+    "components/community/PostCard.tsx",
+    "app/comunidade/loading.tsx",
+    "app/comunidade/layout.tsx",
+    "app/comunidade/page.tsx",
+    "app/comunidade/not-found.tsx",
+    "app/comunidade/error.tsx",
+    "app/api/community/route.ts",
+    "app/api/community/upload/route.ts",
+    "app/api/admin/community/route.ts",
+    "app/comunidade/salvos/page.tsx",
+    "app/comunidade/projeto/[id]/page.tsx",
+    "app/comunidade/usuario/[id]/page.tsx",
+    "app/comunidade/post/[id]/page.tsx",
+    "app/comunidade/tag/[tag]/page.tsx"
+  ],
+  "validation": {
+    "production_build": "passed",
+    "typescript": "passed",
+    "isolated_postgresql_rls": "passed",
+    "remote_supabase": "not_run",
+    "browser_visual": "blocked_local_preview",
+    "deployed": false
+  }
+}

@@ -8,11 +8,12 @@ import { reputationProgress } from '@/lib/reputation'
 import AdminAnalytics from '@/components/admin/AdminAnalytics'
 import AdminPromotions from '@/components/admin/AdminPromotions'
 import AdminEvents from '@/components/admin/AdminEvents'
+import AdminCommunity from '@/components/community/AdminCommunity'
 
 type AdminUser={id:string;email:string;created_at?:string;name?:string;city?:string;state?:string;whatsapp?:string;badge?:string;role?:string;account_status?:string;avatar_url?:string;last_admin_note?:string;xp_points?:number;reputation_level?:string}
 type AdminListing={id:string;kind:'fullsend'|'gecko';title:string;price:number|null;status:string;city?:string|null;state?:string|null;source?:string;is_featured?:boolean;is_vip?:boolean;admin_note?:string;external_url?:string|null;created_at?:string|null;user_id?:string|null;ai_rebaixado?:boolean|null;ai_roda_grande?:boolean|null;ai_stance?:boolean|null;ai_style_score?:number|null;ai_confidence?:number|null;ai_reason?:string|null;ai_analyzed_at?:string|null;ai_manual_rebaixado?:boolean|null;image_url?:string|null}
 type AuditLog={id:number|string;action:string;entity?:string|null;entity_id?:string|null;created_at?:string|null}
-type Tab='overview'|'listings'|'promoted'|'payments'|'ai'|'imports'|'visitors'|'events'|'users'
+type Tab='community'|'overview'|'listings'|'promoted'|'payments'|'ai'|'imports'|'visitors'|'events'|'users'
 type PromoFilter='all'|'featured'|'vip'
 
 const IMPORT_CATEGORIES=[
@@ -198,7 +199,7 @@ export default function AdminDashboard({users:initialUsers,listings:initialListi
   function patchUser(id:string,key:keyof AdminUser,value:any){setUsers(v=>v.map(x=>x.id===id?{...x,[key]:value}:x))}
   function patchListing(id:string,kind:string,key:keyof AdminListing,value:any){setListings(v=>v.map(x=>x.id===id&&x.kind===kind?{...x,[key]:value}:x))}
 
-  const pageTitle=tab==='overview'?'CENTRAL DE CONTROLE':tab==='listings'?'GERENCIAR ANÚNCIOS':tab==='promoted'?'DESTAQUES & VIP':tab==='payments'?'IMPULSIONAMENTOS / PIX':tab==='ai'?'IA DE ESTILO AUTOMOTIVO':tab==='imports'?'BUSCAS AUTOMÁTICAS':tab==='visitors'?'VISITANTES & IA':tab==='events'?'EVENTOS AUTOMOTIVOS':'GERENCIAR USUÁRIOS'
+  const pageTitle=tab==='community'?'COMUNIDADE':tab==='overview'?'CENTRAL DE CONTROLE':tab==='listings'?'GERENCIAR ANÚNCIOS':tab==='promoted'?'DESTAQUES & VIP':tab==='payments'?'IMPULSIONAMENTOS / PIX':tab==='ai'?'IA DE ESTILO AUTOMOTIVO':tab==='imports'?'BUSCAS AUTOMÁTICAS':tab==='visitors'?'VISITANTES & IA':tab==='events'?'EVENTOS AUTOMOTIVOS':'GERENCIAR USUÁRIOS'
 
   return <div className="admin-shell">
     <aside className="admin-sidebar">
@@ -211,6 +212,7 @@ export default function AdminDashboard({users:initialUsers,listings:initialListi
         <button className={tab==='ai'?'active':''} onClick={()=>{setTab('ai');setQ('')}}><BrainCircuit size={18}/> IA REBAIXADOS <b>{stats.aiPending}</b></button>
         <button className={tab==='imports'?'active':''} onClick={()=>{setTab('imports');setQ('')}}><Radar size={18}/> BUSCAS AUTO <b>{importJobs.filter(x=>x.enabled).length}</b></button>
         <button className={tab==='visitors'?'active':''} onClick={()=>{setTab('visitors');setQ('')}}><Activity size={18}/> VISITANTES</button>
+        <button className={tab==='community'?'active':''} onClick={()=>{setTab('community');setQ('')}}><Users size={18}/> COMUNIDADE</button>
         <button className={tab==='events'?'active':''} onClick={()=>{setTab('events');setQ('')}}><CalendarDays size={18}/> EVENTOS</button>
         <button className={tab==='users'?'active':''} onClick={()=>{setTab('users');setQ('')}}><Users size={18}/> USUÁRIOS <b>{stats.users}</b></button>
       </nav>
@@ -218,7 +220,7 @@ export default function AdminDashboard({users:initialUsers,listings:initialListi
     </aside>
 
     <main className="admin-main">
-      <header className="admin-topbar"><div><span className="section-kicker">PAINEL ADMINISTRATIVO</span><h1>{pageTitle}</h1></div>{tab!=='overview'&&tab!=='visitors'&&tab!=='payments'&&tab!=='events'?<div className="admin-search"><Search size={17}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder={tab==='users'?'Buscar usuário...':'Buscar anúncio...'}/></div>:null}</header>
+      <header className="admin-topbar"><div><span className="section-kicker">PAINEL ADMINISTRATIVO</span><h1>{pageTitle}</h1></div>{tab!=='overview'&&tab!=='visitors'&&tab!=='payments'&&tab!=='events'&&tab!=='community'?<div className="admin-search"><Search size={17}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder={tab==='users'?'Buscar usuário...':'Buscar anúncio...'}/></div>:null}</header>
       {msg?<div className="admin-toast">{msg}</div>:null}
 
       {tab==='overview'?<>
@@ -393,6 +395,7 @@ export default function AdminDashboard({users:initialUsers,listings:initialListi
       {tab==='visitors'?<AdminAnalytics/>:null}
 
       {tab==='events'?<AdminEvents/>:null}
+      {tab==='community'?<AdminCommunity/>:null}
 
       {tab==='users'?<section className="admin-table-wrap">
         <div className="admin-table-head"><span>{filteredUsers.length} usuários</span><small>Controle de conta, reputação, XP e permissões da comunidade.</small></div>

@@ -151,6 +151,7 @@ export default async function Perfil(){
         )}
       </section>
 
+      <section className="user-contacts-panel"><div className="user-ads-head"><div><span>REDE FULLSEND</span><h2>COMUNIDADE</h2></div></div><div className="user-dashboard-top-actions"><Link className="btn btn-red" href="/comunidade">ABRIR COMUNIDADE</Link><Link className="btn" href="/comunidade/salvos">PUBLICAÇÕES SALVAS</Link><Link className="btn" href={`/comunidade/usuario/${user.id}`}>MEU PERFIL PÚBLICO</Link></div></section>
       <UserEventsPanel events={myEvents}/>
 
       <section className="user-ads-panel">
@@ -170,6 +171,7 @@ export default async function Perfil(){
                   <Link href={`/anuncio/${x.slug}`} className="user-view-ad">VER ANÚNCIO <ChevronRight size={14}/></Link>
                   <div className="user-ad-management">
                     <ListingBoostButton listingId={x.id} title={x.title} status={x.status} initialVip={Boolean(x.is_vip)} initialFeatured={Boolean(x.is_featured)}/>
+                    <Link className="user-view-ad" href={`/comunidade/projeto/${x.id}`}>DIÁRIO DO PROJETO</Link>
                     <UserListingActions listing={x}/>
                   </div>
                 </div>

@@ -150,6 +150,7 @@ function FilterFields({ p, base }:{ p:Record<string,string|undefined>, base:stri
 
 function FilterSidebar({ p }:{ p:Record<string,string|undefined> }) {
   return <aside className="filters-sidebar">
+    <Link href="/comunidade" className="filters-events-button" style={{background:'transparent',border:0,boxShadow:'none'}} aria-label="Abrir Comunidade FULLSEND"><img src="/fullsend-comunidade-button.png" alt="Comunidade FULLSEND"/></Link>
     <Link href="/eventos" className="filters-events-button" aria-label="Abrir agenda de eventos automotivos">
       <img src="/fullsend-eventos-button.png" alt="Eventos automotivos FULLSEND"/>
     </Link>
