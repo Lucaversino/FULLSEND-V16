@@ -7,6 +7,14 @@ export async function PATCH(req:Request){
   const gate=await requireAdmin(); if(!gate.ok)return NextResponse.json({error:gate.error},{status:gate.status})
   const body=await req.json(); const id=String(body.id||''); const kind=String(body.kind||'fullsend'); const table=tableFor(kind)
   if(!id)return NextResponse.json({error:'Anúncio inválido.'},{status:400})
+  if(body.action==='promotion'){
+    if(!['fullsend','gecko'].includes(kind)||!['is_featured','is_vip'].includes(body.key)||typeof body.value!=='boolean')return NextResponse.json({error:'Promoção inválida.'},{status:400})
+    const {data,error}=await gate.admin.from(table).update({[body.key]:body.value,updated_at:new Date().toISOString()}).eq('id',id).select('id,is_featured,is_vip').maybeSingle()
+    if(error)return NextResponse.json({error:'Não foi possível salvar a promoção.'},{status:500})
+    if(!data)return NextResponse.json({error:'Anúncio não encontrado.'},{status:404})
+    await gate.admin.from('audit_logs').insert({actor_id:gate.user.id,action:'admin_listing_promotion',entity:table,entity_id:id,data:{key:body.key,value:body.value}})
+    return NextResponse.json({success:true,listing:data})
+  }
   const payload:any={title:String(body.title||'').trim(),price:body.price===''||body.price==null?null:Number(body.price),is_featured:Boolean(body.is_featured),is_vip:Boolean(body.is_vip),admin_note:String(body.admin_note||'').trim(),updated_at:new Date().toISOString()}
   if(kind==='fullsend')payload.status=['draft','pending','active','sold','blocked'].includes(body.status)?body.status:'active'
   else payload.status=['active','inactive','blocked'].includes(body.status)?body.status:'active'

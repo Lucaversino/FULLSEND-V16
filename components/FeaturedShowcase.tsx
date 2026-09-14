@@ -4,69 +4,68 @@ import { useEffect, useRef, useState } from 'react'
 import ListingCard from '@/components/ListingCard'
 import type { UnifiedListing } from '@/lib/listings'
 import { ChevronLeft, ChevronRight, Crown, Sparkles } from 'lucide-react'
+import { selectFeatured,featuredKey,type RotationHistory } from '@/lib/featured-rotation'
+import type { FeaturedFilters } from '@/lib/featured-listings'
 
-const MAX_VISIBLE = 10
-const LAST_FIRST_KEY = 'fullsend-featured-last-first-v1'
+const MAX_VISIBLE=10
+const HISTORY_KEY='fullsend-featured-cycle-v2:'
 
-function randomIndex(max:number){
-  if(max<=1)return 0
-  try{
-    const value=new Uint32Array(1)
-    crypto.getRandomValues(value)
-    return value[0]%max
-  }catch{
-    return Math.floor(Math.random()*max)
-  }
-}
-
-function shuffle<T>(items:T[]){
-  const copy=[...items]
-  for(let i=copy.length-1;i>0;i--){
-    const j=randomIndex(i+1)
-    ;[copy[i],copy[j]]=[copy[j],copy[i]]
-  }
-  return copy
-}
-
-function randomVisible(items:UnifiedListing[]){
-  const shuffled=shuffle(items)
-
-  // Em um reload na mesma aba, evita repetir o primeiro card quando há alternativas.
-  try{
-    const lastFirst=sessionStorage.getItem(LAST_FIRST_KEY)
-    const currentFirst=shuffled[0] ? `${shuffled[0].kind}:${shuffled[0].id}` : ''
-    if(shuffled.length>1 && currentFirst===lastFirst){
-      const swapWith=1+randomIndex(shuffled.length-1)
-      ;[shuffled[0],shuffled[swapWith]]=[shuffled[swapWith],shuffled[0]]
-    }
-    if(shuffled[0])sessionStorage.setItem(LAST_FIRST_KEY,`${shuffled[0].kind}:${shuffled[0].id}`)
-  }catch{}
-
-  return shuffled.slice(0,MAX_VISIBLE)
-}
-
-export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
+export default function FeaturedShowcase({items,filters={},initialError=''}:{items:UnifiedListing[];filters?:FeaturedFilters;initialError?:string}){
   const viewportRef=useRef<HTMLDivElement>(null)
   const trackRef=useRef<HTMLDivElement>(null)
   const positionRef=useRef(0)
   const halfWidthRef=useRef(0)
   const rafRef=useRef<number|0>(0)
   const [visible,setVisible]=useState<UnifiedListing[]>(()=>items.slice(0,MAX_VISIBLE))
+  const [error,setError]=useState(initialError)
+  const [refreshing,setRefreshing]=useState(false)
+  const refreshRef=useRef<()=>void>(()=>{})
+  const query=new URLSearchParams({city:filters.city||'',state:filters.state||'',category:filters.category||'',brand:filters.brand||''}).toString()
 
   useEffect(()=>{
-    positionRef.current=0
-    setVisible(randomVisible(items))
-  },[items])
-
-  useEffect(()=>{
-    const onPageShow=(event:PageTransitionEvent)=>{
-      if(!event.persisted)return
+    let active=true,busy=false,selected=false
+    let pool=items
+    const controller=new AbortController()
+    const storageKey=HISTORY_KEY+query
+    let history:RotationHistory={seen:[],last:[]}
+    try{const stored=JSON.parse(localStorage.getItem(storageKey)||'null');if(Array.isArray(stored?.seen)&&Array.isArray(stored?.last))history=stored}catch{}
+    const rotate=(next:UnifiedListing[])=>{
+      const result=selectFeatured(next,history,MAX_VISIBLE)
+      history=result.history
+      try{localStorage.setItem(storageKey,JSON.stringify(history))}catch{}
       positionRef.current=0
-      setVisible(randomVisible(items))
+      if(trackRef.current)trackRef.current.style.transform='translate3d(0,0,0)'
+      setVisible(result.items);selected=true
     }
+    const signature=(list:UnifiedListing[])=>list.map(featuredKey).sort().join('|')
+    const update=async(forceRotate=false)=>{
+      if(busy||!active)return
+      busy=true;setRefreshing(true)
+      try{
+        const res=await fetch('/api/featured?'+query,{cache:'no-store',credentials:'same-origin',signal:controller.signal})
+        if(!res.ok)throw new Error('Não foi possível atualizar os destaques.')
+        const data=await res.json()
+        if(!Array.isArray(data.items))throw new Error('Resposta inválida.')
+        if(!active)return
+        const next=data.items as UnifiedListing[]
+        if(!selected||forceRotate||signature(next)!==signature(pool))rotate(next)
+        else {const map=new Map(next.map(x=>[featuredKey(x),x]));setVisible(current=>current.map(x=>map.get(featuredKey(x))).filter((x):x is UnifiedListing=>Boolean(x)))}
+        pool=next;setError('')
+      }catch{
+        if(active){if(!selected)rotate(pool);setError('Não foi possível atualizar os destaques. A seleção exibida pode estar desatualizada. Tente novamente.')}
+      }finally{busy=false;if(active)setRefreshing(false)}
+    }
+    refreshRef.current=()=>{void update(true)}
+    void update(true)
+    const timer=window.setInterval(()=>{if(document.visibilityState==='visible')void update()},30000)
+    const onFocus=()=>{void update()}
+    const onStorage=(event:StorageEvent)=>{if(event.key==='fullsend-featured-changed')void update()}
+    const onPageShow=(event:PageTransitionEvent)=>{if(event.persisted)void update(true)}
+    window.addEventListener('focus',onFocus)
+    window.addEventListener('storage',onStorage)
     window.addEventListener('pageshow',onPageShow)
-    return()=>window.removeEventListener('pageshow',onPageShow)
-  },[items])
+    return()=>{active=false;controller.abort();clearInterval(timer);window.removeEventListener('focus',onFocus);window.removeEventListener('storage',onStorage);window.removeEventListener('pageshow',onPageShow)}
+  },[items,query])
 
   useEffect(()=>{
     const track=trackRef.current
@@ -77,7 +76,9 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
 
     const measure=()=>{
       if(!trackRef.current)return
-      const half=trackRef.current.scrollWidth/2
+      const first=trackRef.current.children[0] as HTMLElement|undefined
+      const second=trackRef.current.children[visible.length] as HTMLElement|undefined
+      const half=first&&second?second.offsetLeft-first.offsetLeft:trackRef.current.scrollWidth/2
       halfWidthRef.current=half
 
       if(half>0){
@@ -144,7 +145,7 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
     track.style.transform=`translate3d(${-positionRef.current}px,0,0)`
   }
 
-  if(!visible.length)return null
+  if(!visible.length&&!error&&!refreshing)return null
   const loopItems=visible.length>1?[...visible,...visible]:visible
 
   return <section className="featured-showcase">
@@ -161,6 +162,11 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
         <span><Sparkles size={13}/>DESTAQUE</span>
         <span className="vip"><Crown size={13}/>VIP</span>
       </div>
+    </div>
+
+    <div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap',marginBottom:12}}>
+      <button type="button" className="btn" disabled={refreshing} onClick={()=>refreshRef.current()}>{refreshing?'Atualizando…':'Atualizar destaques'}</button>
+      {error?<small role="alert" style={{color:'#ff929b'}}>{error}</small>:null}
     </div>
 
     <div className="featured-carousel-shell">

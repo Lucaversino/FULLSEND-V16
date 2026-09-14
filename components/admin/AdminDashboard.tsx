@@ -115,14 +115,17 @@ export default function AdminDashboard({users:initialUsers,listings:initialListi
     const j=await r.json();setBusy('');setMsg(r.ok?'Anúncio atualizado.':j.error||'Erro ao atualizar anúncio.')
   }
   async function setPromotion(x:AdminListing,key:'is_featured'|'is_vip',value:boolean){
-    const updated={...x,[key]:value}
+    if(busy)return
     setBusy(`p-${key}-${x.kind}-${x.id}`);setMsg('')
-    const r=await fetch('/api/admin/listings',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)})
-    const j=await r.json();setBusy('')
-    if(r.ok){
-      setListings(v=>v.map(a=>a.id===x.id&&a.kind===x.kind?updated:a))
-      setMsg(value?(key==='is_vip'?'VIP ativado. O anúncio entrou na seleção do carrossel.':'Destaque ativado. O anúncio entrou na seleção do carrossel.'):(key==='is_vip'?'VIP removido.':'Destaque removido.'))
-    }else setMsg(j.error||'Erro ao atualizar promoção.')
+    try{
+      const r=await fetch('/api/admin/listings',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'promotion',id:x.id,kind:x.kind,key,value})})
+      const j=await r.json()
+      if(!r.ok)throw new Error(j.error||'Erro ao atualizar promoção.')
+      setListings(v=>v.map(a=>a.id===x.id&&a.kind===x.kind?{...a,is_featured:j.listing.is_featured,is_vip:j.listing.is_vip}:a))
+      try{localStorage.setItem('fullsend-featured-changed',String(Date.now()))}catch{}
+      setMsg(value?'Promoção salva. Anúncios ativos entram no rodízio do carrossel.':'Promoção removida e salva.')
+    }catch(error){setMsg(error instanceof Error?error.message:'Falha de conexão. Tente novamente.')}
+    finally{setBusy('')}
   }
   async function deleteListing(x:AdminListing){
     if(!confirm(`Excluir definitivamente o anúncio “${x.title}”?`))return
@@ -379,8 +382,8 @@ export default function AdminDashboard({users:initialUsers,listings:initialListi
               <div className="admin-listing-controls">
                 <label>Preço<input type="number" value={x.price??''} onChange={e=>patchListing(x.id,x.kind,'price',e.target.value===''?null:Number(e.target.value))}/></label>
                 <label>Status<select value={x.status} onChange={e=>patchListing(x.id,x.kind,'status',e.target.value)}>{x.kind==='fullsend'?<><option value="active">Ativo</option><option value="pending">Pendente</option><option value="sold">Vendido</option><option value="blocked">Bloqueado</option><option value="draft">Rascunho</option></>:<><option value="active">Ativo</option><option value="inactive">Inativo</option><option value="blocked">Bloqueado</option></>}</select></label>
-                <label className="admin-toggle"><input type="checkbox" checked={!!x.is_featured} onChange={e=>patchListing(x.id,x.kind,'is_featured',e.target.checked)}/><span><Sparkles size={14}/> DESTAQUE</span></label>
-                <label className="admin-toggle vip"><input type="checkbox" checked={!!x.is_vip} onChange={e=>patchListing(x.id,x.kind,'is_vip',e.target.checked)}/><span><Crown size={14}/> VIP</span></label>
+                <label className="admin-toggle"><input type="checkbox" checked={!!x.is_featured} disabled={Boolean(busy)} onChange={e=>setPromotion(x,'is_featured',e.target.checked)}/><span><Sparkles size={14}/> DESTAQUE</span></label>
+                <label className="admin-toggle vip"><input type="checkbox" checked={!!x.is_vip} disabled={Boolean(busy)} onChange={e=>setPromotion(x,'is_vip',e.target.checked)}/><span><Crown size={14}/> VIP</span></label>
                 <input className="admin-note" value={x.admin_note||''} onChange={e=>patchListing(x.id,x.kind,'admin_note',e.target.value)} placeholder="Nota interna do ADM"/>
                 <div className="admin-actions">
                   <button onClick={()=>updateListing(x)} disabled={busy===`l-${x.kind}-${x.id}`} className="admin-save"><Save size={15}/> SALVAR</button>

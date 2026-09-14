@@ -12,6 +12,7 @@ import { fetchPublicListingsPage, ITEMS_PER_PAGE } from '@/lib/supabase/public-l
 import { Filter, RotateCcw } from 'lucide-react'
 import { expirePromotions } from '@/lib/promotion-payments'
 import HomeEventsCarousel from '@/components/events/HomeEventsCarousel'
+import { fetchFeaturedListings } from '@/lib/featured-listings'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -371,47 +372,11 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
     currentPage = totalPages
   }
 
-  // O carrossel de Destaques/VIP é uma coleção pequena e independente da paginação
-  // principal. Mantemos a regra atual, com limite de segurança no banco.
-  let promotedOwnQuery = authClient
-    .from('listings')
-    .select('id,user_id,category_slug,title,slug,description,price,city,state,cover_url,media,tags,status,source,external_url,is_featured,is_vip,brand,model,year,mileage,fuel,transmission,vehicle_styles,features,engine,color,body_type,created_at')
-    .eq('status','active')
-    .or('is_featured.eq.true,is_vip.eq.true')
-
-  let promotedGeckoQuery = authClient
-    .from('gecko_listings')
-    .select('id,title,price,city,state,image_url,images,external_url,brand,model,year,mileage,fuel,transmission,features,category,category_id,import_search_category,status,listed_at,imported_at,is_featured,is_vip,raw_data,ai_rebaixado,ai_roda_grande,ai_stance,ai_style_score,ai_confidence,ai_reason,ai_tags,ai_analyzed_at,ai_manual_rebaixado')
-    .eq('status','active')
-    .or('is_featured.eq.true,is_vip.eq.true')
-
-  if(city) {
-    promotedOwnQuery = promotedOwnQuery.ilike('city', `%${city}%`)
-    promotedGeckoQuery = promotedGeckoQuery.ilike('city', `%${city}%`)
-  }
-  if(state) {
-    promotedOwnQuery = promotedOwnQuery.eq('state', state)
-    promotedGeckoQuery = promotedGeckoQuery.eq('state', state)
-  }
-  if (p.categoria) promotedOwnQuery = promotedOwnQuery.eq('category_slug', p.categoria)
-  if(p.marca) promotedGeckoQuery = promotedGeckoQuery.ilike('brand', `%${p.marca}%`)
-
-  const [promotedOwnRes,promotedGeckoRes] = await Promise.all([
-    promotedOwnQuery.order('created_at',{ascending:false}).limit(60),
-    promotedGeckoQuery.order('imported_at',{ascending:false}).limit(60),
-  ])
-
-  const promotedOwnRows = promotedOwnRes.data || []
-  const promotedSellerIds = Array.from(new Set(promotedOwnRows.map((x:any)=>x.user_id).filter(Boolean)))
-  const promotedSellerRes = promotedSellerIds.length
-    ? await authClient.from('profiles').select('id,name,avatar_url,badge,xp_points,reputation_level').in('id',promotedSellerIds)
-    : { data: [] as any[] }
-  const promotedSellerMap = new Map((promotedSellerRes.data||[]).map((x:any)=>[x.id,x]))
-
-  const promotedListings:UnifiedListing[] = shuffleListings([
-    ...(promotedGeckoRes.data||[]).map(fromGecko),
-    ...(p.marca ? [] : promotedOwnRows.map((x:any)=>fromFullsend({...x,seller_profile:promotedSellerMap.get(x.user_id)||null}))),
-  ].filter((item) => !p.categoria || item.categorySlug === p.categoria))
+  const featuredFilters={city,state,category:p.categoria,brand:p.marca}
+  let promotedListings:UnifiedListing[]=[]
+  let featuredError=''
+  try{promotedListings=await fetchFeaturedListings(authClient,featuredFilters)}
+  catch{featuredError='Não foi possível carregar os destaques. Tente atualizar.'}
 
   const today=new Date().toISOString().slice(0,10)
   const {data:homeEventsData}=await authClient
@@ -434,7 +399,7 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
     <div className="container">
       <SearchBar target="/" initialQuery={p.q || ''} initialCategory={p.categoria || ''} initialState={p.estado || ''} initialCity={p.cidade || ''}/>
       <BrandCarousel />
-      <FeaturedShowcase items={promotedListings}/>
+      <FeaturedShowcase items={promotedListings} filters={featuredFilters} initialError={featuredError}/>
       <HomeEventsCarousel events={homeEvents} compact title="PRÓXIMOS EVENTOS"/>
 
       <div className="explore-layout">
