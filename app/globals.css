@@ -1379,6 +1379,12 @@ select:focus{
 .copilot-mini-label{display:block;color:#ff4e5e;font-size:6px;font-weight:1000;letter-spacing:1.2px;margin-bottom:5px}
 .copilot-follow{display:block;margin-top:8px;padding-top:8px;border-top:1px solid #282c33;color:#f0f1f3;font-size:9px;line-height:1.45;font-weight:800}
 
+/* Atalhos internos são validados pelo backend antes da renderização. */
+.copilot-actions{width:100%;display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+.copilot-actions a{min-height:34px;padding:0 10px;border:1px solid #65303a;border-radius:9px;background:linear-gradient(180deg,#241116,#160d10);color:#fff;font-size:7px;font-weight:1000;letter-spacing:.45px;display:flex;align-items:center;justify-content:space-between;gap:8px;transition:.18s ease}
+.copilot-actions a:hover,.copilot-actions a:focus-visible{border-color:#ff4052;background:#321219;transform:translateY(-1px);outline:none;box-shadow:0 0 0 3px rgba(255,39,56,.08)}
+.copilot-context-bar b{color:#d9dce1;font-weight:900}
+
 .copilot-recommendations{width:100%;display:grid;gap:7px;margin-top:7px}
 .copilot-car{display:grid;grid-template-columns:112px 1fr;min-height:112px;border:1px solid #2a2e35;border-radius:12px;overflow:hidden;background:#0e1014;transition:.18s ease}
 .copilot-car:hover{transform:translateY(-2px);border-color:#4a4f58;background:#111419}

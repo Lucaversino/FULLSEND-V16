@@ -1,11 +1,27 @@
 import { NextResponse } from 'next/server'
 import { inferFilters, getCopilotCandidates } from '@/lib/copilot/inventory'
 import { askCopilotAI } from '@/lib/copilot/openai'
+import { buildCopilotPageContext } from '@/lib/copilot/page-context'
+import { createClient } from '@/lib/supabase/server'
 
 export const dynamic='force-dynamic'
 export const maxDuration=60
 
 type IncomingMessage={role:'user'|'assistant';content:string}
+
+const ACTIONS={
+  classifieds:{label:'VER CLASSIFICADOS',href:'/explorar'},
+  announce:{label:'ANUNCIAR AGORA',href:'/anunciar'},
+  garage:{label:'ADICIONAR À GARAGEM',href:'/garagem/adicionar'},
+  community:{label:'IR PARA A COMUNIDADE',href:'/comunidade'},
+  events:{label:'VER EVENTOS',href:'/eventos'},
+  add_event:{label:'CADASTRAR EVENTO',href:'/eventos/adicionar'},
+  profile:{label:'ABRIR MEU PERFIL',href:'/perfil'},
+  xp:{label:'VER XP E REPUTAÇÃO',href:'/perfil'},
+  boost:{label:'IMPULSIONAR ANÚNCIO',href:'/perfil'},
+  help:{label:'AJUDA E SEGURANÇA',href:'/seguranca'},
+  login:{label:'ENTRAR NO FULLSEND',href:'/login'},
+} as const
 
 function cleanMessages(value:unknown):IncomingMessage[]{
   if(!Array.isArray(value))return[]
@@ -14,6 +30,18 @@ function cleanMessages(value:unknown):IncomingMessage[]{
     .map((m:any)=>({role:m.role,content:m.content.trim().slice(0,1800)}))
     .filter((m:any)=>m.content)
     .slice(-12)
+}
+
+function normalize(value:string){
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+}
+
+function shouldSearchInventory(message:string){
+  const text=normalize(message)
+  const siteOnly=/\b(anunciar|vender|garagem|comunidade|evento|xp|reputacao|gearhead|builder|elite|impulsionar|destaque|vip|login|senha|perfil|ajuda)\b/.test(text)
+  const explicit=/\b(buscar|busca|procuro|procurando|encontrar|ache|mostre|opcoes|classificados|comprar|quero um|quero uma)\b/.test(text)
+  const vehicleCriteria=/\b(turbo|manual|rebaixad|stance|carro antigo|veiculo|carro|moto)\b/.test(text)&&/\b(ate|por menos|r\$|mil|comprar|quero|procuro|buscar)\b/.test(text)
+  return explicit||(!siteOnly&&vehicleCriteria)
 }
 
 export async function POST(req:Request){
@@ -29,13 +57,22 @@ export async function POST(req:Request){
       return NextResponse.json({error:'Digite uma mensagem para o Copilot.'},{status:400})
     }
 
-    const filters=inferFilters(lastUser.content)
-    const candidates=await getCopilotCandidates(lastUser.content,filters)
-    const ai=await askCopilotAI(messages,candidates)
+    let authState:'logged_in'|'visitor'='visitor'
+    try{
+      const supabase=await createClient()
+      const {data:{user}}=await supabase.auth.getUser()
+      if(user)authState='logged_in'
+    }catch{}
 
-    const map=new Map(candidates.map(x=>[x.id,x]))
+    const pageContext=await buildCopilotPageContext(body?.context,authState)
+    const candidates=shouldSearchInventory(lastUser.content)
+      ?await getCopilotCandidates(lastUser.content,inferFilters(lastUser.content))
+      :[]
+    const ai=await askCopilotAI(messages,candidates,pageContext)
+
+    const listingMap=new Map(candidates.map(x=>[x.id,x]))
     const recommendations=ai.recommendation_ids
-      .map(id=>map.get(id))
+      .map(id=>listingMap.get(id))
       .filter(Boolean)
       .map((x:any)=>({
         id:x.id,
@@ -55,13 +92,20 @@ export async function POST(req:Request){
         featured:Boolean(x.isFeatured),
       }))
 
+    const seen=new Set<string>()
+    const actions=ai.action_ids
+      .filter((id):id is keyof typeof ACTIONS=>id in ACTIONS&&!seen.has(id)&&Boolean(seen.add(id)))
+      .map(id=>({id,...ACTIONS[id]}))
+
     return NextResponse.json({
       success:true,
       reply:ai.reply,
       followUp:ai.follow_up,
       understood:ai.understood,
       recommendations,
+      actions,
       candidateCount:candidates.length,
+      page:{name:pageContext.pageName,authState:pageContext.authState},
     })
   }catch(e:any){
     console.error('FULLSEND COPILOT ERROR',e)

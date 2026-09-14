@@ -1,16 +1,18 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Bot, ChevronRight, Gauge, MessageCircle, Send, Sparkles, X, RotateCcw, ExternalLink, MapPin } from 'lucide-react'
 
+type CopilotAction={id:string;label:string;href:string}
 type Message={
   id:string
   role:'user'|'assistant'
   content:string
   followUp?:string|null
   recommendations?:Recommendation[]
+  actions?:CopilotAction[]
 }
-
 type Recommendation={
   id:string
   kind:'gecko'|'fullsend'
@@ -29,33 +31,58 @@ type Recommendation={
   featured?:boolean
 }
 
-const STORAGE_KEY='fullsend-copilot-session-v1'
-
+const STORAGE_KEY='fullsend-copilot-session-v2'
+const FILTER_KEYS=['q','category','state','city','style','page','dateFrom','dateTo']
 const START:Message={
   id:'welcome',
   role:'assistant',
-  content:'Fala. Eu sou o FULLSEND Copilot. Me diz o que você quer da próxima máquina — orçamento, uso e estilo — que eu procuro opções reais daqui.',
-  followUp:'Quer começar por turbo, projeto antigo, rebaixado ou carro para o dia a dia?'
+  content:'Fala, gearhead! Em que posso dar uma força?',
+  followUp:'Tô por aqui pra ajudar com o site, sua garagem, eventos e dúvidas automotivas básicas.'
 }
-
 const QUICK=[
-  'Turbo até R$ 80 mil',
-  'Quero um projeto antigo',
-  'Rebaixado com roda grande',
-  'Carro manual para fim de semana',
+  'Quero anunciar meu carro',
+  'Quero adicionar carro à garagem',
+  'Procurar eventos',
+  'Como funciona o XP?',
+  'Buscar carros turbo',
+  'Como impulsionar anúncio?',
+]
+const PAGE_NAMES:Array<[RegExp,string]>=[
+  [/^\/$/,'Página inicial'],
+  [/^\/explorar/,'Classificados'],
+  [/^\/anunciar/,'Anunciar'],
+  [/^\/anuncio\/parceiro\//,'Anúncio parceiro'],
+  [/^\/anuncio\//,'Página do anúncio'],
+  [/^\/garagem\/adicionar/,'Minha Garagem'],
+  [/^\/perfil/,'Perfil e painel'],
+  [/^\/comunidade/,'Comunidade'],
+  [/^\/eventos\/adicionar/,'Cadastrar evento'],
+  [/^\/eventos\//,'Página do evento'],
+  [/^\/eventos/,'Eventos'],
+  [/^\/mensagens/,'Mensagens'],
+  [/^\/vip/,'FULLSEND VIP'],
+  [/^\/seguranca/,'Ajuda e segurança'],
+  [/^\/privacidade/,'Privacidade'],
+  [/^\/termos/,'Termos de uso'],
+  [/^\/login/,'Login'],
+  [/^\/cadastro/,'Cadastro'],
 ]
 
+function getPageName(pathname:string){
+  return PAGE_NAMES.find(([pattern])=>pattern.test(pathname))?.[1]||'FULLSEND'
+}
 function money(value:number|null){
   if(value==null)return'Consulte'
   return value.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0})
 }
-
 function km(value:number|null|undefined){
   if(value==null)return null
-  return `${Math.round(value).toLocaleString('pt-BR')} km`
+  return Math.round(value).toLocaleString('pt-BR')+' km'
 }
 
 export default function FullsendCopilot(){
+  const pathname=usePathname()||'/'
+  const pageName=getPageName(pathname)
   const [open,setOpen]=useState(false)
   const [messages,setMessages]=useState<Message[]>([START])
   const [input,setInput]=useState('')
@@ -83,11 +110,22 @@ export default function FullsendCopilot(){
     [messages]
   )
 
+  function currentContext(){
+    const filters:Record<string,string>={}
+    try{
+      const params=new URLSearchParams(window.location.search)
+      for(const key of FILTER_KEYS){
+        const value=params.get(key)?.trim()
+        if(value)filters[key]=value.slice(0,100)
+      }
+    }catch{}
+    return{pathname,filters}
+  }
+
   async function send(text?:string){
     const value=(text??input).trim()
     if(!value||busy)return
-
-    const user:Message={id:`u-${Date.now()}`,role:'user',content:value}
+    const user:Message={id:'u-'+Date.now(),role:'user',content:value}
     const next=[...apiMessages,{role:'user' as const,content:value}]
     setMessages(v=>[...v,user])
     setInput('')
@@ -98,17 +136,17 @@ export default function FullsendCopilot(){
       const r=await fetch('/api/copilot',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({messages:next}),
+        body:JSON.stringify({messages:next,context:currentContext()}),
       })
       const j=await r.json()
       if(!r.ok)throw new Error(j.error||'Falha no Copilot.')
-
       setMessages(v=>[...v,{
-        id:`a-${Date.now()}`,
+        id:'a-'+Date.now(),
         role:'assistant',
         content:j.reply,
         followUp:j.followUp||null,
         recommendations:Array.isArray(j.recommendations)?j.recommendations:[],
+        actions:Array.isArray(j.actions)?j.actions:[],
       }])
     }catch(e:any){
       setError(e?.message||'Não consegui responder agora.')
@@ -128,50 +166,50 @@ export default function FullsendCopilot(){
     <>
       <button
         type="button"
-        className={`copilot-launcher ${open?'open':''}`}
+        className={'copilot-launcher '+(open?'open':'')}
         onClick={()=>setOpen(v=>!v)}
         aria-label={open?'Fechar FULLSEND Copilot':'Abrir FULLSEND Copilot'}
       >
         <span className="copilot-launcher-pulse" aria-hidden="true"/>
         <span className="copilot-launcher-icon">{open?<X size={21}/>:<Bot size={21}/>}</span>
-        <span className="copilot-launcher-copy">
-          <small>FULLSEND AI</small>
-          <b>COPILOT</b>
-        </span>
+        <span className="copilot-launcher-copy"><small>FULLSEND AI</small><b>COPILOT</b></span>
       </button>
 
       {open?<aside className="copilot-panel" aria-label="FULLSEND Copilot">
         <header className="copilot-head">
-          <div className="copilot-avatar" aria-hidden="true">
-            <Gauge size={22}/>
-            <span/>
-          </div>
+          <div className="copilot-avatar" aria-hidden="true"><Gauge size={22}/><span/></div>
           <div>
             <span>FULLSEND AI</span>
             <strong>COPILOT</strong>
-            <small><i/> ONLINE • GARAGEM DIGITAL</small>
+            <small><i/> ONLINE • PARCEIRO GEARHEAD</small>
           </div>
-          <button type="button" onClick={reset} title="Nova conversa"><RotateCcw size={16}/></button>
-          <button type="button" onClick={()=>setOpen(false)} title="Fechar"><X size={18}/></button>
+          <button type="button" onClick={reset} title="Nova conversa" aria-label="Nova conversa"><RotateCcw size={16}/></button>
+          <button type="button" onClick={()=>setOpen(false)} title="Fechar" aria-label="Fechar"><X size={18}/></button>
         </header>
 
         <div className="copilot-context-bar">
           <Sparkles size={13}/>
-          <span>Escolhe carros usando anúncios reais do FULLSEND.</span>
+          <span>Você está em <b>{pageName}</b> • ajuda contextual ativa</span>
         </div>
 
         <div className="copilot-messages" ref={scrollRef}>
-          {messages.map(m=><div key={m.id} className={`copilot-message ${m.role}`}>
+          {messages.map(m=><div key={m.id} className={'copilot-message '+m.role}>
             <div className="copilot-bubble">
               {m.role==='assistant'?<span className="copilot-mini-label">COPILOT</span>:null}
               <p>{m.content}</p>
               {m.followUp?<small className="copilot-follow">{m.followUp}</small>:null}
             </div>
 
+            {m.actions?.length?<div className="copilot-actions">
+              {m.actions.map(action=><a key={action.id} href={action.href}>
+                {action.label}<ChevronRight size={14}/>
+              </a>)}
+            </div>:null}
+
             {m.recommendations?.length?<div className="copilot-recommendations">
               {m.recommendations.map(x=><a
                 key={x.id}
-                className={`copilot-car ${x.vip?'vip':x.featured?'featured':''}`}
+                className={'copilot-car '+(x.vip?'vip':x.featured?'featured':'')}
                 href={x.url}
                 target={x.kind==='gecko'?'_blank':undefined}
                 rel={x.kind==='gecko'?'noopener noreferrer':undefined}
@@ -188,7 +226,7 @@ export default function FullsendCopilot(){
                     {km(x.mileage)?<span>{km(x.mileage)}</span>:null}
                     {x.transmission?<span>{x.transmission}</span>:null}
                   </div>
-                  <small><MapPin size={11}/>{x.city||'Brasil'}{x.state?` / ${x.state}`:''}</small>
+                  <small><MapPin size={11}/>{x.city||'Brasil'}{x.state?' / '+x.state:''}</small>
                   <em>VER ANÚNCIO <ExternalLink size={11}/></em>
                 </div>
               </a>)}
@@ -199,15 +237,15 @@ export default function FullsendCopilot(){
             <div className="copilot-bubble copilot-thinking">
               <span className="copilot-mini-label">COPILOT</span>
               <div><i/><i/><i/></div>
-              <small>Olhando a garagem...</small>
+              <small>Preparando a melhor rota...</small>
             </div>
           </div>:null}
 
           {error?<div className="copilot-error">{error}</div>:null}
         </div>
 
-        {messages.length<=1?<div className="copilot-quick">
-          {QUICK.map(q=><button key={q} onClick={()=>send(q)} disabled={busy}>
+        {messages.length<=1?<div className="copilot-quick" aria-label="Sugestões rápidas">
+          {QUICK.map(q=><button type="button" key={q} onClick={()=>send(q)} disabled={busy}>
             {q}<ChevronRight size={13}/>
           </button>)}
         </div>:null}
@@ -224,17 +262,16 @@ export default function FullsendCopilot(){
                   send()
                 }
               }}
-              placeholder="Ex.: quero um turbo manual até 80 mil..."
+              placeholder="Pergunte sobre o FULLSEND ou sobre carros..."
+              aria-label="Mensagem para o FULLSEND Copilot"
               rows={1}
             />
           </div>
-          <button type="submit" disabled={busy||!input.trim()} aria-label="Enviar">
-            <Send size={17}/>
-          </button>
+          <button type="submit" disabled={busy||!input.trim()} aria-label="Enviar"><Send size={17}/></button>
         </form>
 
         <footer className="copilot-foot">
-          <span>IA pode errar. Confira anúncio, documentação e condição do veículo.</span>
+          <span>IA pode errar. Dados reais só são usados quando o FULLSEND os fornece.</span>
         </footer>
       </aside>:null}
     </>
