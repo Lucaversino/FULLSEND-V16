@@ -1289,6 +1289,8 @@ select:focus{
 }
 
 
+
+
 /* ==========================================================
    FULLSEND COPILOT — AI Automotive Concierge
    ========================================================== */
@@ -3964,6 +3966,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 .fs-art-button:focus-visible{outline:2px solid #ff3445;outline-offset:4px;border-radius:10px}
 .fs-search-art-button{width:156px;min-height:52px}
 .fs-announce-art-button{width:164px;min-height:48px}
+.fs-create-account-art-button{width:172px;min-height:48px;flex:0 0 auto}
 .mobile-announce-fab img{display:block;width:190px;height:auto;object-fit:contain}
 
 .event-location-panel{
@@ -3993,6 +3996,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 .event-coordinate-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:11px}
 
 @media(max-width:820px){
+  .fs-create-account-art-button{width:146px;min-height:44px}
   .fs-search-art-button{width:100%;max-width:250px;min-height:58px;justify-self:center}
   .mobile-announce-fab{
     min-height:0;
@@ -4006,8 +4010,50 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
   .event-location-grid{grid-template-columns:1fr 1fr}
 }
 @media(max-width:560px){
+  .fs-create-account-art-button{width:112px;min-height:36px}
   .event-location-panel{padding:13px}
   .event-location-grid,.event-coordinate-grid{grid-template-columns:1fr}
   .event-location-grid .wide{grid-column:auto}
   .mobile-announce-fab img{width:min(190px,52vw)}
+}
+
+/* FULLSEND V17.4.1 - ajuste do botão Criar conta em telas estreitas */
+@media(max-width:380px){.fs-create-account-art-button{width:84px;min-height:36px}}
+
+
+/* FULLSEND V17.4.2 - Tipografia legível do Copilot */
+.copilot-panel{width:min(470px,calc(100vw - 28px));height:min(720px,calc(100dvh - 112px))}
+.copilot-launcher-copy small{font-size:9px}
+.copilot-launcher-copy b{font-size:14px}
+.copilot-head>div:nth-child(2)>span{font-size:10px}
+.copilot-head strong{font-size:18px}
+.copilot-head small{font-size:10px;color:#a4a9b2}
+.copilot-context-bar{min-height:40px;padding:7px 14px;color:#b8bdc6;font-size:11px;line-height:1.4}
+.copilot-bubble{max-width:92%;padding:13px 14px;color:#eef0f4}
+.copilot-bubble p{font-size:15px;line-height:1.6}
+.copilot-mini-label{font-size:10px;letter-spacing:1px;margin-bottom:7px}
+.copilot-follow{font-size:13px;line-height:1.5;margin-top:10px;padding-top:10px}
+.copilot-actions{gap:8px;margin-top:9px}
+.copilot-actions a{min-height:40px;padding:0 12px;font-size:11px;line-height:1.25}
+.copilot-car{grid-template-columns:126px 1fr;min-height:128px}
+.copilot-car-image{min-height:128px}
+.copilot-car-badge{font-size:9px;padding:5px 7px}
+.copilot-car-body{padding:11px}
+.copilot-car-body>strong{font-size:12px;line-height:1.4}
+.copilot-car-body>b{font-size:17px;margin:6px 0}
+.copilot-car-meta{font-size:10px;color:#a9aeb7;gap:6px}
+.copilot-car-body>small{font-size:10px;color:#a0a5ae;margin-top:6px}
+.copilot-car-body>em{font-size:10px;padding-top:7px}
+.copilot-thinking small{font-size:12px;color:#aeb3bb}
+.copilot-error{font-size:12px;line-height:1.5;padding:11px 12px}
+.copilot-quick{padding:11px 12px;gap:8px}
+.copilot-quick button{min-height:38px;height:auto;padding:8px 12px;font-size:11px;line-height:1.25}
+.copilot-input{grid-template-columns:1fr 46px;padding:10px}
+.copilot-input>div{min-height:48px}
+.copilot-input textarea{font-size:14px;line-height:1.45;padding:12px 0}
+.copilot-foot{min-height:36px;padding:7px 14px;color:#8e949e;font-size:10px;line-height:1.35}
+@media(max-width:700px){
+  .copilot-panel{height:min(76dvh,690px)}
+  .copilot-bubble p{font-size:14px}
+  .copilot-car{grid-template-columns:106px 1fr}
 }

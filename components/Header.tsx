@@ -53,10 +53,9 @@ export default async function Header() {
                 <span>ENTRAR</span>
               </Link>
 
-              <Link className="btn btn-red fx-main-btn fx-main-btn-red fs-hero-action" href="/cadastro">
-                <span className="fs-btn-scan" aria-hidden="true" />
-                <span className="fs-btn-orbit" aria-hidden="true" />
-                <span>CRIAR CONTA</span>
+              <Link className="fs-art-button fs-create-account-art-button" href="/cadastro" aria-label="Criar conta">
+                <Image src="/fullsend-criar-conta.png" alt="" width={2048} height={682} priority/>
+                <span className="sr-only">Criar conta</span>
               </Link>
             </>
           )}
