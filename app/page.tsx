@@ -12,7 +12,6 @@ import { fetchPublicListingsPage, ITEMS_PER_PAGE } from '@/lib/supabase/public-l
 import { Filter, RotateCcw } from 'lucide-react'
 import { expirePromotions } from '@/lib/promotion-payments'
 import HomeEventsCarousel from '@/components/events/HomeEventsCarousel'
-import EventsSideButton from '@/components/events/EventsSideButton'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -151,6 +150,9 @@ function FilterFields({ p, base }:{ p:Record<string,string|undefined>, base:stri
 
 function FilterSidebar({ p }:{ p:Record<string,string|undefined> }) {
   return <aside className="filters-sidebar">
+    <Link href="/eventos" className="filters-events-button" aria-label="Abrir agenda de eventos automotivos">
+      <img src="/fullsend-eventos-button.png" alt="Eventos automotivos FULLSEND"/>
+    </Link>
     <div className="filters-card desktop-filters">
       <div className="filters-title"><Filter size={17}/><div><strong>FILTROS</strong><span>Refine sua busca</span></div></div>
       <form method="GET" action="/"><FilterFields p={p} base="/"/></form>
@@ -448,6 +450,5 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
 
       <HomeEventsCarousel events={homeEvents} title="AGENDA AUTOMOTIVA FULLSEND"/>
     </div>
-    <EventsSideButton/>
   </main>
 }
