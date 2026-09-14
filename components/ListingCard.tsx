@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { MapPin, Gauge, CalendarDays, ArrowRight, X, ChevronLeft, ChevronRight, ExternalLink, Fuel, Settings2, Images as ImagesIcon, Crown, Sparkles } from 'lucide-react'
 import type { UnifiedListing } from '@/lib/listings'
 import UserBadge from '@/components/UserBadge'
+import ReputationBadge from '@/components/ReputationBadge'
 import DirectMessageButton from '@/components/DirectMessageButton'
 import FollowUserButton from '@/components/FollowUserButton'
 
@@ -147,7 +148,7 @@ export default function ListingCard({ x }: { x: UnifiedListing }) {
             {x.mileage != null ? <span><Gauge size={14}/>{x.mileage.toLocaleString('pt-BR')} km</span> : null}
           </div>
           <div className="listing-location"><MapPin size={15}/>{x.city || 'Brasil'}{x.state ? ` / ${x.state}` : ''}</div>
-          {x.seller?.name?<div className="listing-seller-mini"><span>{x.seller.avatar_url?<img src={x.seller.avatar_url} alt=""/>:<b>{x.seller.name[0]?.toUpperCase()}</b>}</span><em>{x.seller.name}</em><UserBadge badge={x.seller.badge} compact/></div>:null}
+          {x.seller?.name?<div className="listing-seller-mini"><span>{x.seller.avatar_url?<img src={x.seller.avatar_url} alt=""/>:<b>{x.seller.name[0]?.toUpperCase()}</b>}</span><em>{x.seller.name}</em><UserBadge badge={x.seller.badge} compact/><ReputationBadge level={x.seller.reputation_level||'ROOKIE'} xp={x.seller.xp_points} compact/></div>:null}
           <div className="listing-cta">VER RÁPIDO <ArrowRight size={15}/></div>
         </div>
       </button>

@@ -133,7 +133,7 @@ function FilterFields({ p, base }:{ p:Record<string,string|undefined>, base:stri
 
     <div className="filter-group">
       <label>Ordenar por</label>
-      <select name="ordem" defaultValue={p.ordem || 'recent'}>
+      <select name="ordem" defaultValue={p.ordem || 'random'}>
         <option value="recent">Mais recentes</option>
         <option value="random">Aleatório</option>
         <option value="price-asc">Menor preço</option>
@@ -314,6 +314,13 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
   const priceMax = num(p.precoMax)
   const requestedPage = Math.max(1, Math.trunc(num(p.page || p.pagina) || 1))
 
+  // A página inicial usa ordem aleatória por padrão.
+  // Sem seed na URL, cada novo carregamento recebe uma seed diferente.
+  // Ao navegar pelas páginas, a mesma seed é preservada para evitar
+  // repetição/troca de anúncios durante a paginação.
+  const effectiveSort = p.ordem || 'random'
+  const randomSeed = p.seed?.trim() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`
+
   let result = await fetchPublicListingsPage({
     page: requestedPage,
     query: q,
@@ -331,7 +338,8 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
     fuel: p.combustivel,
     transmission: p.cambio,
     style: p.estilo,
-    sort: p.ordem || 'recent',
+    sort: effectiveSort,
+    randomSeed: effectiveSort === 'random' ? randomSeed : undefined,
   })
 
   let totalPages = Math.max(1, Math.ceil(result.total / PAGE_SIZE))
@@ -395,7 +403,7 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
   const promotedOwnRows = promotedOwnRes.data || []
   const promotedSellerIds = Array.from(new Set(promotedOwnRows.map((x:any)=>x.user_id).filter(Boolean)))
   const promotedSellerRes = promotedSellerIds.length
-    ? await authClient.from('profiles').select('id,name,avatar_url,badge').in('id',promotedSellerIds)
+    ? await authClient.from('profiles').select('id,name,avatar_url,badge,xp_points,reputation_level').in('id',promotedSellerIds)
     : { data: [] as any[] }
   const promotedSellerMap = new Map((promotedSellerRes.data||[]).map((x:any)=>[x.id,x]))
 
@@ -443,6 +451,7 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
               currentPage={currentPage}
               totalPages={totalPages}
               pageSize={PAGE_SIZE}
+              randomSeed={effectiveSort === 'random' ? randomSeed : undefined}
             />
           ) : <div className="empty-state"><h3>Nenhum anúncio encontrado.</h3><p>Ajuste ou limpe os filtros para ampliar a busca.</p></div>}
         </section>

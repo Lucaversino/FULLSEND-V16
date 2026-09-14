@@ -30,12 +30,14 @@ export default function PaginatedListings({
   currentPage,
   totalPages,
   pageSize,
+  randomSeed,
 }:{
   items:UnifiedListing[]
   total:number
   currentPage:number
   totalPages:number
   pageSize:number
+  randomSeed?:string
 }){
   const router=useRouter()
   const pathname=usePathname()
@@ -53,6 +55,8 @@ export default function PaginatedListings({
     if(page<1||page>totalPages||page===currentPage)return
     const sp=new URLSearchParams(searchParams.toString())
     sp.delete('pagina')
+    if(randomSeed)sp.set('seed',randomSeed)
+    else sp.delete('seed')
     if(page<=1)sp.delete('page')
     else sp.set('page',String(page))
     const query=sp.toString()

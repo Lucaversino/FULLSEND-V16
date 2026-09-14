@@ -3,11 +3,13 @@
 import { useMemo, useState } from 'react'
 import { Users, Car, Sparkles, Crown, ShieldCheck, Search, Save, Trash2, Gauge, ExternalLink, Database, BadgeCheck, Megaphone, BrainCircuit, ScanSearch, CheckCircle2, XCircle, Radar, Play, Power, MapPin, RefreshCw, Clock3, Plus, Activity, CalendarDays } from 'lucide-react'
 import UserBadge from '@/components/UserBadge'
+import ReputationBadge from '@/components/ReputationBadge'
+import { reputationProgress } from '@/lib/reputation'
 import AdminAnalytics from '@/components/admin/AdminAnalytics'
 import AdminPromotions from '@/components/admin/AdminPromotions'
 import AdminEvents from '@/components/admin/AdminEvents'
 
-type AdminUser={id:string;email:string;created_at?:string;name?:string;city?:string;state?:string;whatsapp?:string;badge?:string;role?:string;account_status?:string;avatar_url?:string;last_admin_note?:string}
+type AdminUser={id:string;email:string;created_at?:string;name?:string;city?:string;state?:string;whatsapp?:string;badge?:string;role?:string;account_status?:string;avatar_url?:string;last_admin_note?:string;xp_points?:number;reputation_level?:string}
 type AdminListing={id:string;kind:'fullsend'|'gecko';title:string;price:number|null;status:string;city?:string|null;state?:string|null;source?:string;is_featured?:boolean;is_vip?:boolean;admin_note?:string;external_url?:string|null;created_at?:string|null;user_id?:string|null;ai_rebaixado?:boolean|null;ai_roda_grande?:boolean|null;ai_stance?:boolean|null;ai_style_score?:number|null;ai_confidence?:number|null;ai_reason?:string|null;ai_analyzed_at?:string|null;ai_manual_rebaixado?:boolean|null;image_url?:string|null}
 type AuditLog={id:number|string;action:string;entity?:string|null;entity_id?:string|null;created_at?:string|null}
 type Tab='overview'|'listings'|'promoted'|'payments'|'ai'|'imports'|'visitors'|'events'|'users'
@@ -42,6 +44,7 @@ export default function AdminDashboard({users:initialUsers,listings:initialListi
   const [importLogs,setImportLogs]=useState<ImportLog[]>(initialImportLogs)
   const [newImport,setNewImport]=useState({name:'',keyword:'',search_category:'vehicles',location_mode:'exact' as 'exact'|'region'|'state'|'any',city:'',state:'SC',pages:1,enabled:false})
   const [importPreview,setImportPreview]=useState<ImportPreview|null>(null)
+  const [xpAdjustments,setXpAdjustments]=useState<Record<string,string>>({})
 
   const filteredListings=useMemo(()=>{const s=q.toLowerCase().trim();return !s?listings:listings.filter(x=>[x.title,x.city,x.state,x.kind].filter(Boolean).join(' ').toLowerCase().includes(s))},[listings,q])
   const filteredUsers=useMemo(()=>{const s=q.toLowerCase().trim();return !s?users:users.filter(x=>[x.name,x.email,x.city,x.state,x.badge].filter(Boolean).join(' ').toLowerCase().includes(s))},[users,q])
@@ -65,6 +68,21 @@ export default function AdminDashboard({users:initialUsers,listings:initialListi
     const r=await fetch('/api/admin/users',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(u)})
     const j=await r.json();setBusy('');setMsg(r.ok?'Usuário atualizado.':j.error||'Erro ao atualizar usuário.')
   }
+  async function adjustUserXp(u:AdminUser){
+    const raw=xpAdjustments[u.id]||''
+    const delta=Math.trunc(Number(raw)||0)
+    if(!delta){setMsg('Informe um valor de XP positivo ou negativo.');return}
+    setBusy(`xp-${u.id}`);setMsg('')
+    const r=await fetch('/api/admin/users/xp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:u.id,delta,note:'Ajuste manual pelo painel administrativo'})})
+    const j=await r.json().catch(()=>({}))
+    setBusy('')
+    if(r.ok){
+      setUsers(v=>v.map(x=>x.id===u.id?{...x,xp_points:j.xp_points,reputation_level:j.reputation_level}:x))
+      setXpAdjustments(v=>({...v,[u.id]:''}))
+      setMsg(`${u.name||u.email}: ${j.applied>=0?'+':''}${j.applied} XP. Nível ${j.reputation_level}.`)
+    }else setMsg(j.error||'Erro ao ajustar XP.')
+  }
+
   async function deleteUser(u:AdminUser){
     if(!confirm(`Excluir definitivamente ${u.name||u.email}? Os anúncios desse usuário também poderão ser removidos.`))return
     setBusy(`u-${u.id}`);const r=await fetch('/api/admin/users',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:u.id})});const j=await r.json();setBusy('');if(r.ok){setUsers(v=>v.filter(x=>x.id!==u.id));setMsg('Usuário excluído.')}else setMsg(j.error||'Erro ao excluir.')
@@ -377,10 +395,10 @@ export default function AdminDashboard({users:initialUsers,listings:initialListi
       {tab==='events'?<AdminEvents/>:null}
 
       {tab==='users'?<section className="admin-table-wrap">
-        <div className="admin-table-head"><span>{filteredUsers.length} usuários</span><small>Controle conta, dados e permissão. Usuários comuns ficam sem selo.</small></div>
+        <div className="admin-table-head"><span>{filteredUsers.length} usuários</span><small>Controle de conta, reputação, XP e permissões da comunidade.</small></div>
         <div className="admin-user-grid">{filteredUsers.map(u=><article key={u.id} className="admin-user-card">
-          <div className="admin-user-top"><div className="admin-avatar">{u.avatar_url?<img src={u.avatar_url} alt=""/>:<span>{String(u.name||u.email||'U')[0].toUpperCase()}</span>}</div><div><input className="admin-user-name" value={u.name||''} onChange={e=>patchUser(u.id,'name',e.target.value)}/><input className="admin-user-email" value={u.email||''} onChange={e=>patchUser(u.id,'email',e.target.value)}/><UserBadge badge={u.badge}/></div></div>
-          <div className="admin-user-fields"><label>Cidade<input value={u.city||''} onChange={e=>patchUser(u.id,'city',e.target.value)}/></label><label>UF<input value={u.state||''} maxLength={2} onChange={e=>patchUser(u.id,'state',e.target.value)}/></label><label className="wide">WhatsApp<input value={u.whatsapp||''} onChange={e=>patchUser(u.id,'whatsapp',e.target.value)}/></label><label>Selo<input value={u.role==='admin'?'ADM':'SEM SELO'} readOnly/></label><label>Função<select value={u.role||'user'} onChange={e=>patchUser(u.id,'role',e.target.value)}><option value="user">Usuário</option><option value="admin">Administrador</option></select></label><label>Status<select value={u.account_status||'active'} onChange={e=>patchUser(u.id,'account_status',e.target.value)}><option value="active">Ativo</option><option value="suspended">Suspenso</option><option value="blocked">Bloqueado</option></select></label><label className="wide">Nota interna<input value={u.last_admin_note||''} onChange={e=>patchUser(u.id,'last_admin_note',e.target.value)} placeholder="Observação visível somente ao ADM"/></label></div>
+          <div className="admin-user-top"><div className="admin-avatar">{u.avatar_url?<img src={u.avatar_url} alt=""/>:<span>{String(u.name||u.email||'U')[0].toUpperCase()}</span>}</div><div><input className="admin-user-name" value={u.name||''} onChange={e=>patchUser(u.id,'name',e.target.value)}/><input className="admin-user-email" value={u.email||''} onChange={e=>patchUser(u.id,'email',e.target.value)}/><div className="admin-user-badges"><UserBadge badge={u.badge}/><ReputationBadge level={u.reputation_level||'ROOKIE'} xp={u.xp_points}/></div></div></div>
+          <div className="admin-user-fields"><label>Cidade<input value={u.city||''} onChange={e=>patchUser(u.id,'city',e.target.value)}/></label><label>UF<input value={u.state||''} maxLength={2} onChange={e=>patchUser(u.id,'state',e.target.value)}/></label><label className="wide">WhatsApp<input value={u.whatsapp||''} onChange={e=>patchUser(u.id,'whatsapp',e.target.value)}/></label><label>Nível<input value={u.reputation_level||'ROOKIE'} readOnly/></label><label>XP<input value={Number(u.xp_points||0).toLocaleString('pt-BR')} readOnly/></label><label>Função<select value={u.role||'user'} onChange={e=>patchUser(u.id,'role',e.target.value)}><option value="user">Usuário</option><option value="admin">Administrador</option></select></label><label>Status<select value={u.account_status||'active'} onChange={e=>patchUser(u.id,'account_status',e.target.value)}><option value="active">Ativo</option><option value="suspended">Suspenso</option><option value="blocked">Bloqueado</option></select></label><label className="wide">Nota interna<input value={u.last_admin_note||''} onChange={e=>patchUser(u.id,'last_admin_note',e.target.value)} placeholder="Observação visível somente ao ADM"/></label><div className="admin-xp-control wide"><div className="admin-xp-progress"><span style={{width:`${reputationProgress(Number(u.xp_points||0)).percent}%`}}/></div><div><input type="number" value={xpAdjustments[u.id]||''} onChange={e=>setXpAdjustments(v=>({...v,[u.id]:e.target.value}))} placeholder="+100 ou -50 XP"/><button type="button" onClick={()=>adjustUserXp(u)} disabled={busy===`xp-${u.id}`}><Zap size={14}/>{busy===`xp-${u.id}`?' AJUSTANDO...':' AJUSTAR XP'}</button></div></div></div>
           <div className="admin-user-actions"><button onClick={()=>updateUser(u)} disabled={busy===`u-${u.id}`} className="admin-save"><Save size={15}/> SALVAR USUÁRIO</button><button onClick={()=>deleteUser(u)} className="admin-delete"><Trash2 size={15}/> EXCLUIR</button></div>
         </article>)}</div>
       </section>:null}

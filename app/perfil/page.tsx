@@ -9,6 +9,7 @@ import UserListingActions from '@/components/UserListingActions'
 import DirectMessageButton from '@/components/DirectMessageButton'
 import FollowUserButton from '@/components/FollowUserButton'
 import ListingBoostButton from '@/components/ListingBoostButton'
+import ReputationPanel from '@/components/ReputationPanel'
 
 export const dynamic='force-dynamic'
 
@@ -61,6 +62,17 @@ export default async function Perfil(){
     }
   }catch{}
 
+  let xpHistory:any[]=[]
+  try{
+    const admin=createAdminClient()
+    const {data}=await admin.from('xp_ledger')
+      .select('id,action_key,points,note,created_at')
+      .eq('user_id',user.id)
+      .order('created_at',{ascending:false})
+      .limit(8)
+    xpHistory=data||[]
+  }catch{}
+
   const [{data:p},{data:a,error:adsError}]=await Promise.all([
     s.from('profiles').select('*').eq('id',user.id).maybeSingle(),
     s.from('listings')
@@ -90,6 +102,7 @@ export default async function Perfil(){
       </div>
 
       <ProfileOverview profile={p||{}} email={user.email} isVip={false}/>
+      <ReputationPanel xp={Number((p as any)?.xp_points||0)} level={(p as any)?.reputation_level||'ROOKIE'} history={xpHistory}/>
 
       <section className="user-stats">
         <article><Car size={18}/><div><small>ANÚNCIOS</small><b>{ads.length}</b></div></article>

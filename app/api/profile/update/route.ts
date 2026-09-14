@@ -95,6 +95,18 @@ export async function POST(req:Request){
     console.warn('FULLSEND: perfil salvo, mas metadata do avatar não atualizou:',metaError.message)
   }
 
+  // XP de perfil é idempotente: cada recompensa só pode ser recebida uma vez.
+  if(avatar instanceof File && avatar.size>0){
+    try{await admin.rpc('award_xp',{
+      p_user:user.id,p_action:'avatar_added',p_points:10,p_source_type:'profile',p_source_id:'avatar',p_daily_cap:null,p_note:'Foto de perfil personalizada'
+    })}catch{}
+  }
+  if(payload.name&&payload.city&&payload.state&&payload.whatsapp&&payload.bio&&avatarUrl){
+    try{await admin.rpc('award_xp',{
+      p_user:user.id,p_action:'profile_complete',p_points:30,p_source_type:'profile',p_source_id:'complete',p_daily_cap:null,p_note:'Perfil FULLSEND completo'
+    })}catch{}
+  }
+
   return NextResponse.json({
     success:true,
     message:'Perfil atualizado com sucesso.',

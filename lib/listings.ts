@@ -32,7 +32,7 @@ export type UnifiedListing = {
   aiReason?: string | null
   aiAnalyzedAt?: string | null
   aiManualRebaixado?: boolean | null
-  seller?: { id?: string | null; name?: string | null; avatar_url?: string | null; badge?: string | null } | null
+  seller?: { id?: string | null; name?: string | null; avatar_url?: string | null; badge?: string | null; xp_points?: number | null; reputation_level?: string | null } | null
 }
 
 export function proxiedImage(url: string | null | undefined) {

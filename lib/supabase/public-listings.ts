@@ -21,6 +21,7 @@ type PublicSearchParams = {
   transmission?: string
   style?: string
   sort?: string
+  randomSeed?: string
 }
 
 type RpcItem = {
@@ -44,7 +45,7 @@ type RpcItem = {
   is_featured: boolean
   is_vip: boolean
   created_at: string | null
-  seller?: { id?: string | null; name?: string | null; avatar_url?: string | null; badge?: string | null } | null
+  seller?: { id?: string | null; name?: string | null; avatar_url?: string | null; badge?: string | null; xp_points?: number | null; reputation_level?: string | null } | null
 }
 
 function toUnified(row: RpcItem): UnifiedListing {
@@ -105,7 +106,10 @@ export async function fetchPublicListingsPage(params: PublicSearchParams): Promi
     p_fuel: params.fuel || null,
     p_transmission: params.transmission || null,
     p_style: params.style || null,
-    p_sort: params.sort || 'recent',
+    p_sort:
+      params.sort === 'random' && params.randomSeed
+        ? `random:${params.randomSeed}`
+        : (params.sort || 'recent'),
   })
 
   if (error) {
