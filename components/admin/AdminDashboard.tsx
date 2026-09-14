@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Users, Car, Sparkles, Crown, ShieldCheck, Search, Save, Trash2, Gauge, ExternalLink, Database, BadgeCheck, Megaphone, BrainCircuit, ScanSearch, CheckCircle2, XCircle, Radar, Play, Power, MapPin, RefreshCw, Clock3, Plus, Activity, CalendarDays, Zap } from 'lucide-react'
+import { Users, Car, Sparkles, Crown, ShieldCheck, Search, Save, Trash2, Gauge, ExternalLink, Database, BadgeCheck, Megaphone, BrainCircuit, ScanSearch, CheckCircle2, XCircle, Radar, Play, Power, MapPin, RefreshCw, Clock3, Plus, Activity, CalendarDays, Zap, ChevronLeft, ChevronRight, CheckSquare2, Square } from 'lucide-react'
 import UserBadge from '@/components/UserBadge'
 import ReputationBadge from '@/components/ReputationBadge'
 import { reputationProgress } from '@/lib/reputation'
@@ -46,8 +46,29 @@ export default function AdminDashboard({users:initialUsers,listings:initialListi
   const [newImport,setNewImport]=useState({name:'',keyword:'',search_category:'vehicles',location_mode:'exact' as 'exact'|'region'|'state'|'any',city:'',state:'SC',pages:1,enabled:false})
   const [importPreview,setImportPreview]=useState<ImportPreview|null>(null)
   const [xpAdjustments,setXpAdjustments]=useState<Record<string,string>>({})
+  const [listingPage,setListingPage]=useState(1)
+  const [listingPageSize,setListingPageSize]=useState(30)
+  const [listingSource,setListingSource]=useState<'all'|'fullsend'|'gecko'>('all')
+  const [listingStatus,setListingStatus]=useState('all')
+  const [selectedListings,setSelectedListings]=useState<Record<string,boolean>>({})
 
-  const filteredListings=useMemo(()=>{const s=q.toLowerCase().trim();return !s?listings:listings.filter(x=>[x.title,x.city,x.state,x.kind].filter(Boolean).join(' ').toLowerCase().includes(s))},[listings,q])
+  const filteredListings=useMemo(()=>{
+    const s=q.toLowerCase().trim()
+    return listings.filter(x=>{
+      if(listingSource!=='all'&&x.kind!==listingSource)return false
+      if(listingStatus!=='all'&&x.status!==listingStatus)return false
+      if(!s)return true
+      return [x.title,x.city,x.state,x.kind,x.status].filter(Boolean).join(' ').toLowerCase().includes(s)
+    })
+  },[listings,q,listingSource,listingStatus])
+  const listingPages=Math.max(1,Math.ceil(filteredListings.length/listingPageSize))
+  const safeListingPage=Math.min(listingPage,listingPages)
+  const pagedListings=useMemo(()=>{
+    const start=(safeListingPage-1)*listingPageSize
+    return filteredListings.slice(start,start+listingPageSize)
+  },[filteredListings,safeListingPage,listingPageSize])
+  const selectedCount=Object.values(selectedListings).filter(Boolean).length
+  const selectedKeys=new Set(Object.entries(selectedListings).filter(([,v])=>v).map(([k])=>k))
   const filteredUsers=useMemo(()=>{const s=q.toLowerCase().trim();return !s?users:users.filter(x=>[x.name,x.email,x.city,x.state,x.badge].filter(Boolean).join(' ').toLowerCase().includes(s))},[users,q])
   const promotedListings=useMemo(()=>{
     const s=q.toLowerCase().trim()
@@ -106,6 +127,44 @@ export default function AdminDashboard({users:initialUsers,listings:initialListi
   async function deleteListing(x:AdminListing){
     if(!confirm(`Excluir definitivamente o anúncio “${x.title}”?`))return
     setBusy(`l-${x.kind}-${x.id}`);const r=await fetch('/api/admin/listings',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:x.id,kind:x.kind})});const j=await r.json();setBusy('');if(r.ok){setListings(v=>v.filter(a=>!(a.id===x.id&&a.kind===x.kind)));setMsg('Anúncio excluído.')}else setMsg(j.error||'Erro ao excluir.')
+  }
+
+  function listingKey(x:AdminListing){return `${x.kind}:${x.id}`}
+  function toggleListingSelected(x:AdminListing){
+    const key=listingKey(x)
+    setSelectedListings(v=>({...v,[key]:!v[key]}))
+  }
+  function togglePageSelection(){
+    const visibleKeys=pagedListings.map(listingKey)
+    const allSelected=visibleKeys.length>0&&visibleKeys.every(k=>selectedListings[k])
+    setSelectedListings(v=>{
+      const next={...v}
+      for(const key of visibleKeys)next[key]=!allSelected
+      return next
+    })
+  }
+  function clearListingSelection(){setSelectedListings({})}
+  async function deleteSelectedListings(){
+    const items=listings
+      .filter(x=>selectedKeys.has(listingKey(x)))
+      .map(x=>({id:x.id,kind:x.kind,title:x.title}))
+    if(!items.length){setMsg('Selecione pelo menos um anúncio.');return}
+    if(items.length>200){setMsg('Por segurança, exclua no máximo 200 anúncios por vez.');return}
+    if(!confirm(`Excluir definitivamente ${items.length} anúncio(s) selecionado(s)? Essa ação não pode ser desfeita.`))return
+    setBusy('bulk-delete-listings');setMsg('')
+    const r=await fetch('/api/admin/listings',{
+      method:'DELETE',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({items:items.map(({id,kind})=>({id,kind}))})
+    })
+    const j=await r.json().catch(()=>({}))
+    setBusy('')
+    if(!r.ok){setMsg(j.error||'Erro ao excluir anúncios selecionados.');return}
+    const deleted=new Set((j.deleted||[]).map((x:any)=>`${x.kind}:${x.id}`))
+    setListings(v=>v.filter(x=>!deleted.has(listingKey(x))))
+    setSelectedListings({})
+    setMsg(`${j.deletedCount||deleted.size} anúncio(s) excluído(s) com sucesso.`)
+    setListingPage(1)
   }
 
   async function analyzeAiBatch(){
@@ -246,26 +305,98 @@ export default function AdminDashboard({users:initialUsers,listings:initialListi
         <section className="admin-card admin-audit"><h3><ShieldCheck size={18}/> ATIVIDADE ADMINISTRATIVA RECENTE</h3>{logs.length?<div className="audit-list">{logs.slice(0,8).map((log:AuditLog)=><div key={String(log.id)}><span>{log.action.replaceAll('_',' ').toUpperCase()}</span><small>{log.entity||'sistema'} • {log.created_at?new Date(log.created_at).toLocaleString('pt-BR'):'agora'}</small></div>)}</div>:<p>Nenhuma ação administrativa registrada ainda.</p>}</section>
       </>:null}
 
-      {tab==='listings'?<section className="admin-table-wrap">
-        <div className="admin-table-head"><span>{filteredListings.length} anúncios</span><small>Marque DESTAQUE/VIP e clique SALVAR. Apenas os marcados entram no carrossel.</small></div>
-        <div className="admin-list-stack">{filteredListings.map(x=><article key={`${x.kind}-${x.id}`} className={`admin-listing-row ${x.is_vip?'row-vip':''} ${x.is_featured?'row-featured':''}`}>
-          <div className="admin-listing-thumb">
-            {x.image_url
-              ? <img
-                  src={x.kind==='gecko'?`/api/image?url=${encodeURIComponent(x.image_url)}`:x.image_url}
-                  alt={x.title}
-                  loading="lazy"
-                />
-              : <div className="admin-listing-thumb-empty"><Car size={22}/><span>SEM FOTO</span></div>}
+      {tab==='listings'?<section className="admin-table-wrap admin-listings-v2">
+        <div className="admin-listings-toolbar">
+          <div className="admin-listings-summary">
+            <strong>{filteredListings.length}</strong>
+            <span>anúncios encontrados</span>
+            <small>Mostrando {pagedListings.length} por página para o painel ficar mais leve.</small>
           </div>
-          <div className="admin-listing-main"><div className="admin-origin">{x.kind==='gecko'?'PARCEIRO':'FULLSEND'}</div><input className="admin-inline-title" value={x.title} onChange={e=>patchListing(x.id,x.kind,'title',e.target.value)}/><div className="admin-row-meta"><span>{x.city||'—'}{x.state?` / ${x.state}`:''}</span><span>{money(x.price)}</span><span>{x.status}</span></div></div>
-          <div className="admin-listing-controls"><label>Preço<input type="number" value={x.price??''} onChange={e=>patchListing(x.id,x.kind,'price',e.target.value===''?null:Number(e.target.value))}/></label><label>Status<select value={x.status} onChange={e=>patchListing(x.id,x.kind,'status',e.target.value)}>{x.kind==='fullsend'?<><option value="active">Ativo</option><option value="pending">Pendente</option><option value="sold">Vendido</option><option value="blocked">Bloqueado</option><option value="draft">Rascunho</option></>:<><option value="active">Ativo</option><option value="inactive">Inativo</option><option value="blocked">Bloqueado</option></>}</select></label>
-            <label className="admin-toggle"><input type="checkbox" checked={!!x.is_featured} onChange={e=>patchListing(x.id,x.kind,'is_featured',e.target.checked)}/><span><Sparkles size={14}/> DESTAQUE</span></label>
-            <label className="admin-toggle vip"><input type="checkbox" checked={!!x.is_vip} onChange={e=>patchListing(x.id,x.kind,'is_vip',e.target.checked)}/><span><Crown size={14}/> VIP</span></label>
-            <input className="admin-note" value={x.admin_note||''} onChange={e=>patchListing(x.id,x.kind,'admin_note',e.target.value)} placeholder="Nota interna do ADM"/>
-            <div className="admin-actions"><button onClick={()=>updateListing(x)} disabled={busy===`l-${x.kind}-${x.id}`} className="admin-save"><Save size={15}/> SALVAR</button>{x.external_url?<a href={x.external_url} target="_blank" rel="noreferrer" className="admin-open"><ExternalLink size={15}/></a>:null}<button onClick={()=>deleteListing(x)} className="admin-delete"><Trash2 size={15}/></button></div>
+          <div className="admin-listings-filters">
+            <select value={listingSource} onChange={e=>{setListingSource(e.target.value as any);setListingPage(1);clearListingSelection()}}>
+              <option value="all">TODAS AS FONTES</option>
+              <option value="fullsend">FULLSEND</option>
+              <option value="gecko">PARCEIROS / GECKO</option>
+            </select>
+            <select value={listingStatus} onChange={e=>{setListingStatus(e.target.value);setListingPage(1);clearListingSelection()}}>
+              <option value="all">TODOS OS STATUS</option>
+              <option value="active">ATIVOS</option>
+              <option value="pending">PENDENTES</option>
+              <option value="draft">RASCUNHOS</option>
+              <option value="sold">VENDIDOS</option>
+              <option value="inactive">INATIVOS</option>
+              <option value="blocked">BLOQUEADOS</option>
+            </select>
+            <select value={listingPageSize} onChange={e=>{setListingPageSize(Number(e.target.value));setListingPage(1)}}>
+              <option value={20}>20 POR PÁGINA</option>
+              <option value={30}>30 POR PÁGINA</option>
+              <option value={50}>50 POR PÁGINA</option>
+            </select>
           </div>
-        </article>)}</div>
+        </div>
+
+        <div className="admin-bulk-bar">
+          <button className="admin-select-page" onClick={togglePageSelection}>
+            {pagedListings.length>0&&pagedListings.every(x=>selectedListings[listingKey(x)])?<CheckSquare2 size={16}/>:<Square size={16}/>}
+            SELECIONAR PÁGINA
+          </button>
+          <span>{selectedCount} selecionado{selectedCount===1?'':'s'}</span>
+          {selectedCount>0?<button className="admin-clear-selection" onClick={clearListingSelection}>LIMPAR</button>:null}
+          <button className="admin-bulk-delete" onClick={deleteSelectedListings} disabled={!selectedCount||busy==='bulk-delete-listings'}>
+            <Trash2 size={15}/>{busy==='bulk-delete-listings'?' EXCLUINDO...':` EXCLUIR SELECIONADOS${selectedCount?` (${selectedCount})`:''}`}
+          </button>
+        </div>
+
+        <div className="admin-table-head">
+          <span>Página {safeListingPage} de {listingPages}</span>
+          <small>Edição rápida, seleção múltipla e carregamento reduzido por página.</small>
+        </div>
+
+        <div className="admin-list-stack">
+          {pagedListings.map(x=>{
+            const key=listingKey(x)
+            const checked=!!selectedListings[key]
+            return <article key={`${x.kind}-${x.id}`} className={`admin-listing-row admin-listing-row-v2 ${checked?'selected':''} ${x.is_vip?'row-vip':''} ${x.is_featured?'row-featured':''}`}>
+              <label className="admin-listing-select" title="Selecionar anúncio">
+                <input type="checkbox" checked={checked} onChange={()=>toggleListingSelected(x)}/>
+                <span>{checked?<CheckSquare2 size={18}/>:<Square size={18}/>}</span>
+              </label>
+              <div className="admin-listing-thumb">
+                {x.image_url
+                  ? <img
+                      src={x.kind==='gecko'?`/api/image?url=${encodeURIComponent(x.image_url)}`:x.image_url}
+                      alt={x.title}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  : <div className="admin-listing-thumb-empty"><Car size={22}/><span>SEM FOTO</span></div>}
+              </div>
+              <div className="admin-listing-main">
+                <div className="admin-origin">{x.kind==='gecko'?'PARCEIRO':'FULLSEND'}</div>
+                <input className="admin-inline-title" value={x.title} onChange={e=>patchListing(x.id,x.kind,'title',e.target.value)}/>
+                <div className="admin-row-meta"><span>{x.city||'—'}{x.state?` / ${x.state}`:''}</span><span>{money(x.price)}</span><span>{x.status}</span></div>
+              </div>
+              <div className="admin-listing-controls">
+                <label>Preço<input type="number" value={x.price??''} onChange={e=>patchListing(x.id,x.kind,'price',e.target.value===''?null:Number(e.target.value))}/></label>
+                <label>Status<select value={x.status} onChange={e=>patchListing(x.id,x.kind,'status',e.target.value)}>{x.kind==='fullsend'?<><option value="active">Ativo</option><option value="pending">Pendente</option><option value="sold">Vendido</option><option value="blocked">Bloqueado</option><option value="draft">Rascunho</option></>:<><option value="active">Ativo</option><option value="inactive">Inativo</option><option value="blocked">Bloqueado</option></>}</select></label>
+                <label className="admin-toggle"><input type="checkbox" checked={!!x.is_featured} onChange={e=>patchListing(x.id,x.kind,'is_featured',e.target.checked)}/><span><Sparkles size={14}/> DESTAQUE</span></label>
+                <label className="admin-toggle vip"><input type="checkbox" checked={!!x.is_vip} onChange={e=>patchListing(x.id,x.kind,'is_vip',e.target.checked)}/><span><Crown size={14}/> VIP</span></label>
+                <input className="admin-note" value={x.admin_note||''} onChange={e=>patchListing(x.id,x.kind,'admin_note',e.target.value)} placeholder="Nota interna do ADM"/>
+                <div className="admin-actions">
+                  <button onClick={()=>updateListing(x)} disabled={busy===`l-${x.kind}-${x.id}`} className="admin-save"><Save size={15}/> SALVAR</button>
+                  {x.external_url?<a href={x.external_url} target="_blank" rel="noreferrer" className="admin-open"><ExternalLink size={15}/></a>:null}
+                  <button onClick={()=>deleteListing(x)} className="admin-delete"><Trash2 size={15}/></button>
+                </div>
+              </div>
+            </article>
+          })}
+        </div>
+
+        <div className="admin-listings-pagination">
+          <button disabled={safeListingPage<=1} onClick={()=>{setListingPage(p=>Math.max(1,p-1));clearListingSelection()}}><ChevronLeft size={16}/> ANTERIOR</button>
+          <span>PÁGINA <b>{safeListingPage}</b> / {listingPages}</span>
+          <button disabled={safeListingPage>=listingPages} onClick={()=>{setListingPage(p=>Math.min(listingPages,p+1));clearListingSelection()}}>PRÓXIMA <ChevronRight size={16}/></button>
+        </div>
       </section>:null}
 
       {tab==='promoted'?<section className="admin-promo-control">
