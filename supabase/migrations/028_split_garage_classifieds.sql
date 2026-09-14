@@ -29,10 +29,32 @@ create index if not exists listings_public_mode_status_idx
   on public.listings(listing_mode,status)
   where status='active';
 
-create or replace view public.listings_public as
+-- A view antiga pode ter estrutura diferente conforme migrations anteriores.
+-- PostgreSQL não permite remover/reordenar colunas com CREATE OR REPLACE VIEW.
+-- Por isso removemos e recriamos a view de forma explícita.
+drop view if exists public.listings_public;
+
+create view public.listings_public as
 select
-  id,user_id,category_slug,title,slug,description,price,city,state,whatsapp,
-  cover_url,media,tags,status,source,external_url,is_featured,is_vip,created_at
+  id,
+  user_id,
+  category_slug,
+  title,
+  slug,
+  description,
+  price,
+  city,
+  state,
+  whatsapp,
+  cover_url,
+  media,
+  tags,
+  status,
+  source,
+  external_url,
+  is_featured,
+  is_vip,
+  created_at
 from public.listings
 where status='active'
   and coalesce(listing_mode,'classified')='classified';
