@@ -8,6 +8,7 @@ import {
   Phone, FileText, Tag, BadgeDollarSign
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import VehicleBrandModelFields from '@/components/VehicleBrandModelFields'
 
 type ListingMedia = { url:string; isNew?:boolean; file?:File }
 
@@ -268,8 +269,7 @@ export default function UserListingActions({listing}:{listing:any}){
             {listing.category_slug==='carros'?<section className="user-edit-section">
               <div className="user-edit-section-head"><Car size={17}/><div><b>FICHA TÉCNICA DO VEÍCULO</b><small>Dados usados na pesquisa e nos filtros do marketplace.</small></div></div>
               <div className="user-edit-grid three">
-                <label>Marca<input name="brand" defaultValue={listing.brand||''} required/></label>
-                <label>Modelo<input name="model" defaultValue={listing.model||''} required/></label>
+                <VehicleBrandModelFields defaultBrand={listing.brand||''} defaultModel={listing.model||''} className=""/>
                 <label>Ano<input name="year" type="number" min="1900" max="2100" defaultValue={listing.year??''} required/></label>
                 <label>Quilometragem<input name="mileage" type="number" min="0" defaultValue={listing.mileage??''} required/></label>
                 <label>Combustível<select name="fuel" defaultValue={listing.fuel||''}><option value="">Selecione</option><option>Gasolina</option><option>Flex</option><option>Etanol</option><option>Diesel</option><option>Elétrico</option><option>Híbrido</option><option>GNV</option></select></label>

@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import VehicleBrandModelFields from '@/components/VehicleBrandModelFields'
 import {
   UploadCloud, ShieldCheck, Car, Gauge, CalendarDays, Fuel, Settings2,
   Palette, Wrench, Zap, MapPin, Phone, BadgeDollarSign, FileText,
@@ -153,8 +154,13 @@ export default function AnnounceForm({defaults}:{defaults?:{city?:string;state?:
       }
 
       setMsg('Publicando anúncio...')
-      const {error}=await supabase.from('listings').insert(payload)
-      if(error)throw new Error(error.message)
+      const response=await fetch('/api/listings/create',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload),
+      })
+      const result=await response.json().catch(()=>({}))
+      if(!response.ok)throw new Error(result.error||'Não foi possível publicar o anúncio.')
 
       setMsg('Anúncio publicado com sucesso.')
       router.push('/perfil')
@@ -213,8 +219,7 @@ export default function AnnounceForm({defaults}:{defaults?:{city?:string;state?:
       </div>
 
       <div className="announce-pro-grid three">
-        <label><span><Car size={14}/>Marca</span><input className="field" name="brand" placeholder="Volkswagen" required/></label>
-        <label><span><Car size={14}/>Modelo</span><input className="field" name="model" placeholder="Golf GTI" required/></label>
+        <VehicleBrandModelFields/>
         <label><span><CalendarDays size={14}/>Ano</span><input className="field" name="year" type="number" min="1900" max="2100" placeholder="2017" required/></label>
         <label><span><Gauge size={14}/>Quilometragem</span><input className="field" name="mileage" type="number" min="0" step="1" placeholder="89000" required/></label>
         <label><span><Fuel size={14}/>Combustível</span><select className="field" name="fuel" required><option value="">Selecione</option>{FUELS.map(x=><option key={x}>{x}</option>)}</select></label>
