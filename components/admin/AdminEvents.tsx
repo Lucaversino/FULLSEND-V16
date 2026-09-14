@@ -68,6 +68,26 @@ export default function AdminEvents(){
     setEvents(v=>v.filter(i=>i.id!==x.id));setMsg('Evento excluído.')
   }
 
+  async function deleteAllEvents(){
+    if(events.length===0){setMsg('Não há eventos para excluir.');return}
+
+    if(!confirm(`ATENÇÃO: isso vai excluir TODOS os ${events.length} eventos. Deseja continuar?`))return
+    if(!confirm('CONFIRMAÇÃO FINAL: excluir TODOS os eventos? Essa ação não pode ser desfeita.'))return
+
+    setBusy('delete-all');setMsg('Excluindo todos os eventos...')
+    const r=await fetch('/api/admin/events',{
+      method:'DELETE',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({all:true})
+    })
+    const j=await r.json().catch(()=>({}))
+    setBusy('')
+    if(!r.ok){setMsg(j.error||'Erro ao excluir todos os eventos.');return}
+    setEvents([])
+    setImportResult(null)
+    setMsg(`${j.deleted||0} evento(s) excluído(s).`)
+  }
+
   async function importEvents(){
     setBusy('import');setMsg('Importando Ticketmaster...');setImportResult(null)
     const r=await fetch('/api/events/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:importStatus})})
@@ -89,16 +109,19 @@ export default function AdminEvents(){
   return <section className="admin-events-module">
     <div className="admin-events-toolbar">
       <div className="admin-events-search"><Search size={16}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar evento..."/><select value={status} onChange={e=>setStatus(e.target.value)}><option value="">Todos status</option><option value="pending">Pendentes</option><option value="published">Publicados</option><option value="rejected">Rejeitados</option></select><button onClick={load}>BUSCAR</button></div>
-      <button className="admin-event-new" onClick={()=>setEditing({...empty})}><Plus size={15}/> ADICIONAR EVENTO</button>
+      <div className="admin-events-toolbar-actions">
+        <button className="admin-event-delete-all" onClick={deleteAllEvents} disabled={busy==='delete-all'||events.length===0}><Trash2 size={15}/> {busy==='delete-all'?'EXCLUINDO...':'EXCLUIR TODOS'}</button>
+        <button className="admin-event-new" onClick={()=>setEditing({...empty})}><Plus size={15}/> ADICIONAR EVENTO</button>
+      </div>
     </div>
 
     <div className="admin-events-import">
-      <div><RefreshCw size={20}/><span><b>IMPORTAÇÃO TICKETMASTER</b><small>Backend seguro • TICKETMASTER_API_KEY nunca vai para o navegador.</small></span></div>
+      <div><RefreshCw size={20}/><span><b>IMPORTAÇÃO TICKETMASTER</b><small>Brasil somente • sem eventos internacionais • TICKETMASTER_API_KEY fica apenas no servidor.</small></span></div>
       <select value={importStatus} onChange={e=>setImportStatus(e.target.value as any)}><option value="published">Publicar automaticamente</option><option value="pending">Enviar para pendentes</option></select>
       <button onClick={importEvents} disabled={busy==='import'}>{busy==='import'?'IMPORTANDO...':'IMPORTAR EVENTOS'}</button>
     </div>
 
-    {importResult?<div className="admin-event-import-result"><span>Encontrados <b>{importResult.found||0}</b></span><span>Importados <b>{importResult.imported||0}</b></span><span>Atualizados <b>{importResult.updated||0}</b></span><span>Já existiam <b>{importResult.existing||0}</b></span>{importResult.diagnostics?<><span>Brasil bruto <b>{importResult.diagnostics.brazilFound||0}</b></span><span>Fallback global <b>{importResult.diagnostics.fallbackUsed?'SIM':'NÃO'}</b></span></>:null}{importResult.errors?.length?<em>{importResult.errors.join(' • ')}</em>:null}</div>:null}
+    {importResult?<div className="admin-event-import-result"><span>Encontrados <b>{importResult.found||0}</b></span><span>Importados <b>{importResult.imported||0}</b></span><span>Atualizados <b>{importResult.updated||0}</b></span><span>Já existiam <b>{importResult.existing||0}</b></span>{importResult.diagnostics?<><span>Brasil bruto <b>{importResult.diagnostics.brazilFound||0}</b></span><span>Modo <b>BRASIL SOMENTE</b></span></>:null}{importResult.errors?.length?<em>{importResult.errors.join(' • ')}</em>:null}</div>:null}
     {msg?<div className="admin-toast">{msg}</div>:null}
 
     <div className="admin-events-summary"><span><CalendarDays/>TOTAL <b>{events.length}</b></span><span className="pending">PENDENTES <b>{pending}</b></span></div>

@@ -77,10 +77,32 @@ export async function PATCH(req:Request){
 export async function DELETE(req:Request){
   const gate=await requireAdmin()
   if(!gate.ok)return NextResponse.json({error:gate.error},{status:gate.status})
-  const {id}=await req.json()
+  const body=await req.json().catch(()=>({}))
+
+  if(body?.all===true){
+    const {count,error:countError}=await gate.admin.from('events').select('id',{count:'exact',head:true})
+    if(countError)return NextResponse.json({error:countError.message},{status:400})
+
+    const {error}=await gate.admin.from('events')
+      .delete()
+      .neq('id','00000000-0000-0000-0000-000000000000')
+
+    if(error)return NextResponse.json({error:error.message},{status:400})
+
+    await gate.admin.from('audit_logs').insert({
+      actor_id:gate.user.id,
+      action:'admin_events_delete_all',
+      entity:'events',
+      data:{deleted:count||0}
+    }).catch(()=>null)
+
+    return NextResponse.json({success:true,deleted:count||0})
+  }
+
+  const id=String(body?.id||'')
   if(!id)return NextResponse.json({error:'Evento inválido.'},{status:400})
-  const {error}=await gate.admin.from('events').delete().eq('id',String(id))
+  const {error}=await gate.admin.from('events').delete().eq('id',id)
   if(error)return NextResponse.json({error:error.message},{status:400})
-  await gate.admin.from('audit_logs').insert({actor_id:gate.user.id,action:'admin_event_delete',entity:'events',entity_id:String(id)})
+  await gate.admin.from('audit_logs').insert({actor_id:gate.user.id,action:'admin_event_delete',entity:'events',entity_id:id})
   return NextResponse.json({success:true})
 }

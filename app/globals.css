@@ -3175,3 +3175,50 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 /* FULLSEND V16.8.1 — selects Marca/Modelo */
 .announce-form-pro select.field:disabled{opacity:.52;cursor:not-allowed;color:#777d87;background:#0b0c0f}
 .user-edit-grid select:disabled{opacity:.52;cursor:not-allowed}
+
+
+/* FULLSEND V16.8.4 — Eventos Brasil / excluir todos */
+.admin-events-toolbar-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.admin-event-delete-all{
+  height:36px;
+  border:1px solid #6b2229;
+  background:#260d11;
+  color:#ff7b86;
+  border-radius:8px;
+  padding:0 11px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  font-size:8px;
+  font-weight:1000;
+  cursor:pointer;
+}
+.admin-event-delete-all:hover:not(:disabled){
+  border-color:#ef3347;
+  background:#3a0f15;
+  color:#fff;
+}
+.admin-event-delete-all:disabled{
+  opacity:.42;
+  cursor:not-allowed;
+}
+@media(max-width:760px){
+  .admin-events-toolbar-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    width:100%;
+  }
+  .admin-event-delete-all,.admin-event-new{
+    width:100%;
+    justify-content:center;
+  }
+}
+@media(max-width:520px){
+  .admin-events-toolbar-actions{grid-template-columns:1fr}
+}
