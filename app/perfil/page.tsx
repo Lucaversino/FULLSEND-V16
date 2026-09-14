@@ -10,6 +10,7 @@ import DirectMessageButton from '@/components/DirectMessageButton'
 import FollowUserButton from '@/components/FollowUserButton'
 import ListingBoostButton from '@/components/ListingBoostButton'
 import ReputationPanel from '@/components/ReputationPanel'
+import UserEventsPanel from '@/components/events/UserEventsPanel'
 
 export const dynamic='force-dynamic'
 
@@ -71,6 +72,16 @@ export default async function Perfil(){
       .order('created_at',{ascending:false})
       .limit(8)
     xpHistory=data||[]
+  }catch{}
+
+  let myEvents:any[]=[]
+  try{
+    const admin=createAdminClient()
+    const {data}=await admin.from('events')
+      .select('id,slug,title,description,category,event_date,end_date,event_time,venue,address,city,state,image_url,ticket_url,source_url,status,featured,created_at,created_by')
+      .eq('created_by',user.id)
+      .order('created_at',{ascending:false})
+    myEvents=data||[]
   }catch{}
 
   const [{data:p},{data:a,error:adsError}]=await Promise.all([
@@ -139,6 +150,8 @@ export default async function Perfil(){
           <div className="user-contacts-empty">Quando você clicar em <b>SEGUIR</b> em um anunciante, o contato ficará salvo aqui.</div>
         )}
       </section>
+
+      <UserEventsPanel events={myEvents}/>
 
       <section className="user-ads-panel">
         <div className="user-ads-head"><div><span>MINHA GARAGEM</span><h2>MEUS ANÚNCIOS</h2></div><small>{ads.length} anúncio{ads.length===1?'':'s'}</small></div>
