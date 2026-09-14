@@ -1,4 +1,8 @@
-# FULLSEND V17.2 — Comunidade
+**Versão 17.2.2: para atualizar uma instalação que já funciona, siga `LEIA-ME-BUSCA-USUARIOS.md`. Não exige SQL novo.**
+
+# FULLSEND V17.2.1 — Comunidade
+
+**Atualização de sessão: siga primeiro `LEIA-ME-CORRECAO-LOGIN.md` e execute o SQL 027, que inclui o reparo da instalação.**
 
 Integração feita sobre o projeto V17.1.2 enviado. Não é um segundo site.
 

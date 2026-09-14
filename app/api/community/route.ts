@@ -7,8 +7,19 @@ export const dynamic='force-dynamic'
 const uuid=z.string().uuid()
 export async function GET(req:Request){try{
  const {s,user,profile}=await context();const q=new URL(req.url).searchParams
+ if(q.get('mode')==='session')return NextResponse.json({viewer:user?.id||null,isAdmin:profile?.role==='admin'},{headers:{'Cache-Control':'private, no-store'}})
  const optional=(k:string)=>q.get(k)?uuid.parse(q.get(k)):null
  const page=z.coerce.number().int().min(1).max(10000).parse(q.get('page')||1)
+ if(q.get('mode')==='users'){
+  const term=(q.get('q')||'').trim().slice(0,100).replace(/[\\%_]/g,'')
+  const pageSize=5
+  let query=s.from('profiles').select('id,name,avatar_url,city,state').eq('account_status','active')
+  // Sugestões iniciais usam membros reais recentes; a pesquisa inclui a própria conta.
+  if(term)query=query.ilike('name',`%${term}%`)
+  else if(user)query=query.neq('id',user.id)
+  const {data}=checked(await query.order('created_at',{ascending:false}).order('id').range((page-1)*pageSize,page*pageSize))
+  return NextResponse.json({items:(data||[]).slice(0,pageSize),hasMore:(data||[]).length>pageSize},{headers:{'Cache-Control':'private, no-store'}})
+ }
  if(q.get('mode')==='comments'){
   const post=uuid.parse(q.get('post'));const {data}=checked(await s.from('community_comments').select('id,content,user_id,created_at,author:profiles!user_id(id,name,avatar_url)').eq('post_id',post).eq('status','published').order('created_at').order('id').range((page-1)*20,page*20))
   return NextResponse.json({items:(data||[]).slice(0,20),hasMore:(data||[]).length>20})

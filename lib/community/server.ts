@@ -3,13 +3,28 @@ import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 export class CommunityError extends Error {constructor(message:string,public status=400){super(message)}}
 export async function context(write=false){
- const s=await createClient();const {data:{user}}=await s.auth.getUser()
+ const s=await createClient();const {data:{user},error:authError}=await s.auth.getUser()
+ // Falha de rede/serviço não significa sessão encerrada.
+ if(authError && !['AuthSessionMissingError'].includes(authError.name) && !(authError.status && [400,401,403].includes(authError.status)))
+  throw new CommunityError('Não foi possível verificar sua sessão agora. Tente novamente; não é necessário sair da conta.',503)
  const {data:profile,error}=user?await s.from('profiles').select('id,name,city,state,role,account_status').eq('id',user.id).maybeSingle():{data:null,error:null}
  if(write&&!user)throw new CommunityError('Entre na sua conta para continuar.',401)
- if(write&&(error||profile?.account_status!=='active'))throw new CommunityError('Sua conta não está habilitada para publicar ou interagir.',403)
+ if(write&&error)throw new CommunityError('Não foi possível consultar seu perfil. Tente novamente.',503)
+ if(write&&profile?.account_status!=='active')throw new CommunityError('Sua conta não está habilitada para publicar ou interagir.',403)
  return {s,user,profile}
 }
-export function checked<T extends {error:any}>(result:T):T{if(result.error){console.error('Community database:',result.error.code);throw new CommunityError('Não foi possível acessar a Comunidade. Tente novamente ou contate o administrador.',503)}return result}
+export function checked<T extends {error:any}>(result:T):T{
+ if(result.error){
+  const raw=String(result.error.code||'');const code=/^[A-Z0-9]{3,15}$/.test(raw)?raw:'DATABASE'
+  console.error('Community database:',{code,message:result.error.message,details:result.error.details})
+  const message=['PGRST202','PGRST205','42P01','42883','42703'].includes(code)
+   ? 'A configuração da Comunidade no banco está incompleta ou desatualizada. O administrador precisa executar o SQL de reparo.'
+   : code==='42501' ? 'Falta uma permissão do banco para carregar a Comunidade. O administrador precisa executar o SQL de reparo.'
+   : 'Não foi possível carregar a Comunidade. Tente novamente ou informe este código ao administrador.'
+  throw new CommunityError(`${message} Código: ${code}.`,503)
+ }
+ return result
+}
 export function failure(e:unknown){
  if(e instanceof z.ZodError)return NextResponse.json({error:e.issues[0]?.message||'Dados inválidos.'},{status:400})
  if(e instanceof CommunityError)return NextResponse.json({error:e.message},{status:e.status})

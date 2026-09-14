@@ -1,5 +1,5 @@
 {
-  "version": "17.2 Comunidade",
+  "version": "17.2.2 Busca de usuários",
   "changed_existing_files": [
     "app/page.tsx",
     "components/events/EventAttendance.tsx",
@@ -39,5 +39,35 @@
     "remote_supabase": "not_run",
     "browser_visual": "blocked_local_preview",
     "deployed": false
+  },
+  "session_fix": {
+    "files": [
+      "components/community/CommunityFeed.tsx",
+      "app/api/community/route.ts",
+      "lib/community/server.ts"
+    ],
+    "migration": "supabase/migrations/027_community_session_repair.sql",
+    "tests": [
+      "logged_in_feed_failure_opens_editor",
+      "anonymous_redirect",
+      "session_failure_no_redirect",
+      "session_retry",
+      "SQL_repair_reapplication",
+      "production_build"
+    ],
+    "remote_database_cause": "not_confirmed"
+  },
+  "user_search": {
+    "new": [
+      "components/community/UserDiscovery.tsx",
+      "components/community/UserResult.tsx"
+    ],
+    "changed": [
+      "components/community/CommunityFeed.tsx",
+      "components/community/community.css",
+      "app/api/community/route.ts"
+    ],
+    "new_sql_required": false,
+    "production_build": "passed"
   }
 }
