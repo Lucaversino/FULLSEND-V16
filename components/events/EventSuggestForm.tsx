@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { EVENT_CATEGORIES, slugifyEvent } from '@/lib/events'
+import { EVENT_CATEGORIES, slugifyEvent } from '@/lib/events-shared'
 import { UploadCloud, ShieldCheck } from 'lucide-react'
 
 export default function EventSuggestForm(){

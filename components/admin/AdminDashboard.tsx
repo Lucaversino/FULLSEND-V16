@@ -194,9 +194,7 @@ export default function AdminDashboard({users:initialUsers,listings:initialListi
         <button className={tab==='imports'?'active':''} onClick={()=>{setTab('imports');setQ('')}}><Radar size={18}/> BUSCAS AUTO <b>{importJobs.filter(x=>x.enabled).length}</b></button>
         <button className={tab==='visitors'?'active':''} onClick={()=>{setTab('visitors');setQ('')}}><Activity size={18}/> VISITANTES</button>
         <button className={tab==='events'?'active':''} onClick={()=>{setTab('events');setQ('')}}><CalendarDays size={18}/> EVENTOS</button>
-        <button className={tab==='events'?<AdminEvents/>:null}
-
-      {tab==='users'?'active':''} onClick={()=>{setTab('users');setQ('')}}><Users size={18}/> USUÁRIOS <b>{stats.users}</b></button>
+        <button className={tab==='users'?'active':''} onClick={()=>{setTab('users');setQ('')}}><Users size={18}/> USUÁRIOS <b>{stats.users}</b></button>
       </nav>
       <div className="admin-security"><ShieldCheck size={18}/><div><strong>ÁREA PROTEGIDA</strong><span>Ações administrativas são registradas.</span></div></div>
     </aside>
@@ -375,6 +373,8 @@ export default function AdminDashboard({users:initialUsers,listings:initialListi
       </section>:null}
 
       {tab==='visitors'?<AdminAnalytics/>:null}
+
+      {tab==='events'?<AdminEvents/>:null}
 
       {tab==='users'?<section className="admin-table-wrap">
         <div className="admin-table-head"><span>{filteredUsers.length} usuários</span><small>Controle conta, dados e permissão. Usuários comuns ficam sem selo.</small></div>

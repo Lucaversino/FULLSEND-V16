@@ -1,4 +1,4 @@
-import { slugifyEvent } from '@/lib/events'
+import { slugifyEvent } from '@/lib/events-shared'
 
 const KEYWORDS=[
   'car','cars','motorsport','automotive','drift','track day',

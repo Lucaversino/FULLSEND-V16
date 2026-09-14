@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Crosshair, Filter, RotateCcw } from 'lucide-react'
-import { EVENT_CATEGORIES } from '@/lib/events'
+import { EVENT_CATEGORIES } from '@/lib/events-shared'
 
 const RADII=[
   ['25','até 25 km'],

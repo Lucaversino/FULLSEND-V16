@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, Check, ExternalLink, Image as ImageIcon, Plus, RefreshCw, Save, Search, Star, Trash2, XCircle } from 'lucide-react'
-import { EVENT_CATEGORIES } from '@/lib/events'
+import { EVENT_CATEGORIES } from '@/lib/events-shared'
 
 type E={
   id:string;title:string;slug:string;description?:string|null;category:string;

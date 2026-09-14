@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin'
-import { slugifyEvent } from '@/lib/events'
+import { slugifyEvent } from '@/lib/events-shared'
 
 const allowedStatus=['pending','published','rejected']
 const allowedCategories=[
