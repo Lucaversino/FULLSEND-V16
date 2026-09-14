@@ -29,9 +29,22 @@ export async function GET(request: Request){
       const meta=user.user_metadata || {}
       const googleName=meta.full_name || meta.name || meta.user_name || ''
       const googleAvatar=meta.avatar_url || meta.picture || ''
+      const {data:existingProfile}=await supabase
+        .from('profiles')
+        .select('name,avatar_url')
+        .eq('id',user.id)
+        .maybeSingle()
+
       const patch:Record<string,string>={}
-      if(googleName) patch.name=String(googleName)
-      if(googleAvatar) patch.avatar_url=String(googleAvatar)
+      if(googleName&&!existingProfile?.name)patch.name=String(googleName)
+
+      // A foto do Google é usada apenas como foto inicial.
+      // Se o usuário trocar a imagem no FULLSEND, os próximos logins Google
+      // não sobrescrevem a foto personalizada.
+      if(googleAvatar&&!existingProfile?.avatar_url){
+        patch.avatar_url=String(googleAvatar)
+      }
+
       if(Object.keys(patch).length){
         await supabase.from('profiles').update(patch).eq('id',user.id)
       }

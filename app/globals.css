@@ -3551,3 +3551,29 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
     margin:0 0 10px;
   }
 }
+
+
+/* FULLSEND V16.9.2 — troca de avatar */
+.avatar-file-input{
+  position:absolute!important;
+  width:1px!important;
+  height:1px!important;
+  padding:0!important;
+  margin:-1px!important;
+  overflow:hidden!important;
+  clip:rect(0,0,0,0)!important;
+  white-space:nowrap!important;
+  border:0!important;
+}
+.avatar-selected-file{
+  max-width:260px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  color:#a7a7af;
+  font-size:9px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
