@@ -3806,3 +3806,55 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
   .garage-project-grid{grid-template-columns:1fr}
   .garage-head-actions{width:100%;justify-content:space-between}
 }
+
+
+/* FULLSEND V17.2.5 — Eventos + Banner Comunidade */
+.filters-events-button{
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+}
+.filters-events-button img{
+  width:100%;
+  height:auto;
+  display:block;
+  object-fit:contain;
+}
+.filters-events-button:hover{
+  transform:translateY(-2px) scale(1.01);
+  box-shadow:none!important;
+}
+
+.community-footer-banner-wrap{
+  width:100%;
+  padding:28px 16px 18px;
+  background:linear-gradient(180deg,rgba(8,8,10,0),#09090b 45%);
+}
+.community-footer-banner{
+  display:block;
+  width:min(1380px,96vw);
+  margin:0 auto;
+  border-radius:14px;
+  overflow:hidden;
+  transition:transform .18s ease,filter .18s ease;
+}
+.community-footer-banner img{
+  width:100%;
+  height:auto;
+  display:block;
+  object-fit:contain;
+}
+.community-footer-banner:hover{
+  transform:translateY(-2px);
+  filter:brightness(1.05);
+}
+@media(max-width:820px){
+  .community-footer-banner-wrap{
+    padding:18px 10px 12px;
+  }
+  .community-footer-banner{
+    width:100%;
+    border-radius:10px;
+  }
+}

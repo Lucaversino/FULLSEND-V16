@@ -6,6 +6,11 @@ export default function Footer(){
   const year = new Date().getFullYear()
 
   return (
+    <section className="community-footer-banner-wrap" aria-label="Comunidade FULLSEND">
+      <Link href="/comunidade" className="community-footer-banner">
+        <img src="/fullsend-comunidade-banner.png" alt="Comunidade FULLSEND"/>
+      </Link>
+    </section>
     <footer className="site-footer">
       <div className="container footer-main">
         <div className="footer-brand-block">

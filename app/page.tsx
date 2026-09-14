@@ -152,7 +152,7 @@ function FilterSidebar({ p }:{ p:Record<string,string|undefined> }) {
   return <aside className="filters-sidebar">
     <Link href="/comunidade" className="filters-events-button" style={{background:'transparent',border:0,boxShadow:'none'}} aria-label="Abrir Comunidade FULLSEND"><img src="/fullsend-comunidade-button.png" alt="Comunidade FULLSEND"/></Link>
     <Link href="/eventos" className="filters-events-button" aria-label="Abrir agenda de eventos automotivos">
-      <img src="/fullsend-eventos-button.png" alt="Eventos automotivos FULLSEND"/>
+      <img src="/fullsend-eventos-button-v2.png" alt="Eventos automotivos FULLSEND"/>
     </Link>
     <div className="filters-card desktop-filters">
       <div className="filters-title"><Filter size={17}/><div><strong>FILTROS</strong><span>Refine sua busca</span></div></div>
