@@ -16,6 +16,9 @@ type UserEvent={
   event_time?:string|null
   venue?:string|null
   address?:string|null
+  google_maps_url?:string|null
+  latitude?:number|null
+  longitude?:number|null
   city?:string|null
   state?:string|null
   image_url?:string|null
@@ -61,6 +64,9 @@ export default function UserEventsPanel({events}:{events:UserEvent[]}){
       event_time:String(form.get('event_time')||'')||null,
       venue:String(form.get('venue')||'').trim()||null,
       address:String(form.get('address')||'').trim()||null,
+      google_maps_url:String(form.get('google_maps_url')||'').trim()||null,
+      latitude:String(form.get('latitude')||'').trim()===''?null:Number(form.get('latitude')),
+      longitude:String(form.get('longitude')||'').trim()===''?null:Number(form.get('longitude')),
       city:String(form.get('city')||'').trim()||null,
       state:String(form.get('state')||'').trim().toUpperCase().slice(0,2)||null,
       ticket_url:String(form.get('ticket_url')||'').trim()||null,
@@ -168,9 +174,25 @@ export default function UserEventsPanel({events}:{events:UserEvent[]}){
           <label>Data final<input type="date" name="end_date" defaultValue={editing.end_date||''}/></label>
           <label>Horário<input type="time" name="event_time" defaultValue={editing.event_time?.slice(0,5)||''}/></label>
           <label>Local<input name="venue" defaultValue={editing.venue||''}/></label>
-          <label>Endereço<input name="address" defaultValue={editing.address||''}/></label>
-          <label>Cidade<input name="city" defaultValue={editing.city||''}/></label>
-          <label>UF<input name="state" maxLength={2} defaultValue={editing.state||''}/></label>
+          <div className="wide event-location-panel">
+            <div className="event-location-head">
+              <b>LOCALIZAÇÃO DO EVENTO</b>
+              <span>Você pode informar endereço, link do Google Maps ou coordenadas. Todos esses campos são opcionais.</span>
+            </div>
+            <div className="event-location-grid">
+              <label className="wide">Endereço do evento (opcional)<input name="address" defaultValue={editing.address||''}/></label>
+              <label className="wide">Link do Google Maps (opcional)<input name="google_maps_url" type="url" defaultValue={editing.google_maps_url||''}/></label>
+              <label>Cidade (opcional)<input name="city" defaultValue={editing.city||''}/></label>
+              <label>UF (opcional)<input name="state" maxLength={2} defaultValue={editing.state||''}/></label>
+            </div>
+            <details className="event-coordinates-toggle" open={editing.latitude!=null||editing.longitude!=null}>
+              <summary>Informar coordenadas manualmente</summary>
+              <div className="event-coordinate-grid">
+                <label>Latitude (opcional)<input name="latitude" type="number" step="any" defaultValue={editing.latitude??''}/></label>
+                <label>Longitude (opcional)<input name="longitude" type="number" step="any" defaultValue={editing.longitude??''}/></label>
+              </div>
+            </details>
+          </div>
           <label className="wide">Descrição<textarea name="description" rows={5} defaultValue={editing.description||''}/></label>
           <label className="wide">Link de ingressos<input name="ticket_url" defaultValue={editing.ticket_url||''}/></label>
           <label className="wide">Site / link oficial<input name="source_url" defaultValue={editing.source_url||''}/></label>

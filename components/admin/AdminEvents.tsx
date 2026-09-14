@@ -6,7 +6,7 @@ import { EVENT_CATEGORIES } from '@/lib/events-shared'
 type E={
   id:string;title:string;slug:string;description?:string|null;category:string;
   event_date:string;end_date?:string|null;event_time?:string|null;venue?:string|null;
-  address?:string|null;city?:string|null;state?:string|null;country?:string|null;
+  address?:string|null;google_maps_url?:string|null;city?:string|null;state?:string|null;country?:string|null;
   latitude?:number|null;longitude?:number|null;image_url?:string|null;ticket_url?:string|null;
   source_url?:string|null;source:string;status:'pending'|'published'|'rejected';featured:boolean;
 }
@@ -216,12 +216,26 @@ export default function AdminEvents(){
           <label>Horário<input type="time" value={editing.event_time?.slice(0,5)||''} onChange={e=>setEditing({...editing,event_time:e.target.value})}/></label>
           <label>Data final<input type="date" value={editing.end_date||''} onChange={e=>setEditing({...editing,end_date:e.target.value})}/></label>
           <label>Local<input value={editing.venue||''} onChange={e=>setEditing({...editing,venue:e.target.value})}/></label>
-          <label className="wide">Endereço<input value={editing.address||''} onChange={e=>setEditing({...editing,address:e.target.value})}/></label>
-          <label>Cidade<input value={editing.city||''} onChange={e=>setEditing({...editing,city:e.target.value})}/></label>
-          <label>Estado<input maxLength={2} value={editing.state||''} onChange={e=>setEditing({...editing,state:e.target.value})}/></label>
-          <label>País<input value={editing.country||'BR'} onChange={e=>setEditing({...editing,country:e.target.value})}/></label>
-          <label>Latitude<input type="number" step="any" value={editing.latitude??''} onChange={e=>setEditing({...editing,latitude:e.target.value===''?null:Number(e.target.value)})}/></label>
-          <label>Longitude<input type="number" step="any" value={editing.longitude??''} onChange={e=>setEditing({...editing,longitude:e.target.value===''?null:Number(e.target.value)})}/></label>
+          <div className="wide event-location-panel">
+            <div className="event-location-head">
+              <b>LOCALIZAÇÃO DO EVENTO</b>
+              <span>Você pode informar endereço, link do Google Maps ou coordenadas. Todos esses campos são opcionais.</span>
+            </div>
+            <div className="event-location-grid">
+              <label className="wide">Endereço do evento (opcional)<input value={editing.address||''} onChange={e=>setEditing({...editing,address:e.target.value})}/></label>
+              <label className="wide">Link do Google Maps (opcional)<input type="url" value={editing.google_maps_url||''} onChange={e=>setEditing({...editing,google_maps_url:e.target.value})}/></label>
+              <label>Cidade (opcional)<input value={editing.city||''} onChange={e=>setEditing({...editing,city:e.target.value})}/></label>
+              <label>Estado (opcional)<input maxLength={2} value={editing.state||''} onChange={e=>setEditing({...editing,state:e.target.value})}/></label>
+              <label>País<input value={editing.country||'BR'} onChange={e=>setEditing({...editing,country:e.target.value})}/></label>
+            </div>
+            <details className="event-coordinates-toggle" open={editing.latitude!=null||editing.longitude!=null}>
+              <summary>Informar coordenadas manualmente</summary>
+              <div className="event-coordinate-grid">
+                <label>Latitude (opcional)<input type="number" step="any" value={editing.latitude??''} onChange={e=>setEditing({...editing,latitude:e.target.value===''?null:Number(e.target.value)})}/></label>
+                <label>Longitude (opcional)<input type="number" step="any" value={editing.longitude??''} onChange={e=>setEditing({...editing,longitude:e.target.value===''?null:Number(e.target.value)})}/></label>
+              </div>
+            </details>
+          </div>
           <label className="wide">Descrição<textarea rows={5} value={editing.description||''} onChange={e=>setEditing({...editing,description:e.target.value})}/></label>
           <label className="wide">Imagem<input value={editing.image_url||''} onChange={e=>setEditing({...editing,image_url:e.target.value})}/><input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{const f=e.target.files?.[0];if(f)upload(f)}}/></label>
           <label>Link ingresso<input value={editing.ticket_url||''} onChange={e=>setEditing({...editing,ticket_url:e.target.value})}/></label>

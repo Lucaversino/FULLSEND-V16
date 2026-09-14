@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Search, User, Plus, LogIn, ShieldCheck } from 'lucide-react'
+import { Search, User, LogIn, ShieldCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import LogoutButton from '@/components/LogoutButton'
 
@@ -38,11 +38,9 @@ export default async function Header() {
                 <span>PAINEL</span>
               </Link>
 
-              <Link className="btn btn-red announce-btn fx-main-btn fx-main-btn-red fs-hero-action" href="/anunciar">
-                <span className="fs-btn-scan" aria-hidden="true" />
-                <span className="fs-btn-orbit" aria-hidden="true" />
-                <Plus size={16} />
-                <span>ANUNCIAR</span>
+              <Link className="announce-btn fs-art-button fs-announce-art-button" href="/anunciar" aria-label="Anunciar">
+                <Image src="/fullsend-anunciar.png" alt="" width={2048} height={682} priority/>
+                <span className="sr-only">Anunciar</span>
               </Link>
 
               <LogoutButton />

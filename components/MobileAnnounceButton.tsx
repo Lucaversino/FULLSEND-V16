@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Plus } from 'lucide-react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function MobileAnnounceButton() {
@@ -7,7 +7,6 @@ export default async function MobileAnnounceButton() {
   const { data: { user } } = await supabase.auth.getUser()
 
   const href = user ? '/anunciar' : '/cadastro'
-  const label = user ? 'ANUNCIAR' : 'ANUNCIAR'
 
   return (
     <Link
@@ -16,8 +15,8 @@ export default async function MobileAnnounceButton() {
       aria-label={user ? 'Criar anúncio' : 'Criar conta para anunciar'}
       title={user ? 'Criar anúncio' : 'Crie sua conta para anunciar'}
     >
-      <span className="mobile-announce-fab-icon"><Plus size={20} strokeWidth={3} /></span>
-      <span>{label}</span>
+      <Image src="/fullsend-anunciar.png" alt="" width={2048} height={682}/>
+      <span className="sr-only">Anunciar</span>
     </Link>
   )
 }

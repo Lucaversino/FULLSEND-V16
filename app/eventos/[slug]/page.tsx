@@ -52,6 +52,9 @@ export default async function EventoDetalhe({params}:{params:Promise<{slug:strin
   const startIso=event.event_time?`${event.event_date}T${event.event_time}`:`${event.event_date}T00:00:00`
   const endIso=event.end_date?`${event.end_date}T23:59:59`:undefined
   const eventUrl=`${site}/eventos/${event.slug}`
+  const hasCoordinates=Number.isFinite(event.latitude)&&Number.isFinite(event.longitude)
+  const addressLabel=[event.address,event.city,event.state].filter(Boolean).join(' • ')
+  const hasMapLocation=Boolean(event.google_maps_url||addressLabel||hasCoordinates)
   const jsonLd={
     '@context':'https://schema.org',
     '@type':'Event',
@@ -62,22 +65,23 @@ export default async function EventoDetalhe({params}:{params:Promise<{slug:strin
     eventAttendanceMode:'https://schema.org/OfflineEventAttendanceMode',
     eventStatus:'https://schema.org/EventScheduled',
     image:event.image_url?[event.image_url]:undefined,
-    location:{
+    location:hasMapLocation||event.venue?{
       '@type':'Place',
       name:event.venue||undefined,
-      address:{
+      address:addressLabel?{
         '@type':'PostalAddress',
         streetAddress:event.address||undefined,
         addressLocality:event.city||undefined,
         addressRegion:event.state||undefined,
         addressCountry:event.country||'BR',
-      },
-      geo:event.latitude!=null&&event.longitude!=null?{
+      }:undefined,
+      geo:hasCoordinates?{
         '@type':'GeoCoordinates',
         latitude:event.latitude,
         longitude:event.longitude,
       }:undefined,
-    },
+      url:event.google_maps_url||undefined,
+    }:undefined,
     url:eventUrl,
     offers:event.ticket_url?{'@type':'Offer',url:event.ticket_url,availability:'https://schema.org/InStock'}:undefined,
   }
@@ -96,8 +100,8 @@ export default async function EventoDetalhe({params}:{params:Promise<{slug:strin
           <div className="event-detail-facts">
             <span><CalendarDays/>{formatEventDate(event.event_date)}</span>
             <span><Clock3/>{formatEventTime(event.event_time)}</span>
-            <span><MapPin/>{event.venue||'Local a confirmar'}</span>
-            <span><MapPin/>{event.address?`${event.address} • `:''}{event.city||'Brasil'}{event.state?` / ${event.state}`:''}</span>
+            {event.venue?<span><MapPin/>{event.venue}</span>:null}
+            {addressLabel?<span><MapPin/>{addressLabel}</span>:null}
           </div>
           <div className="event-detail-actions">
             <EventAttendance eventId={event.id} initialCount={event.attendees_count||0}/>
@@ -112,7 +116,7 @@ export default async function EventoDetalhe({params}:{params:Promise<{slug:strin
 
       <div className="event-detail-columns">
         <section className="event-description"><span>DETALHES</span><h2>SOBRE O EVENTO</h2><p>{event.description||'O organizador ainda não adicionou uma descrição detalhada.'}</p></section>
-        {event.latitude!=null&&event.longitude!=null?<section className="event-map-section"><span>LOCALIZAÇÃO</span><h2>ONDE ACONTECE</h2><EventMap lat={event.latitude} lng={event.longitude} title={event.title}/></section>:null}
+        {hasMapLocation?<section className="event-map-section"><span>LOCALIZAÇÃO</span><h2>ONDE ACONTECE</h2><EventMap lat={event.latitude} lng={event.longitude} address={event.address} city={event.city} state={event.state} googleMapsUrl={event.google_maps_url} title={event.title}/></section>:null}
       </div>
     </div>
   </main>

@@ -47,6 +47,7 @@ export default function EventSuggestForm(){
         event_time:String(fd.get('event_time')||'')||null,
         venue:String(fd.get('venue')||'').trim()||null,
         address:String(fd.get('address')||'').trim()||null,
+        google_maps_url:String(fd.get('google_maps_url')||'').trim()||null,
         city,
         state:String(fd.get('state')||'').trim().toUpperCase().slice(0,2)||null,
         country:String(fd.get('country')||'BR').trim().toUpperCase()||'BR',
@@ -78,12 +79,26 @@ export default function EventSuggestForm(){
       <label>Data final<input name="end_date" type="date"/></label>
       <label className="wide">Descrição<textarea name="description" rows={6}/></label>
       <label>Local<input name="venue" placeholder="Autódromo, praça, estacionamento..."/></label>
-      <label>Endereço<input name="address"/></label>
-      <label>Cidade<input name="city" required/></label>
-      <label>Estado<input name="state" maxLength={2}/></label>
-      <label>País<input name="country" defaultValue="BR"/></label>
-      <label>Latitude<input name="latitude" type="number" step="any"/></label>
-      <label>Longitude<input name="longitude" type="number" step="any"/></label>
+      <div className="wide event-location-panel">
+        <div className="event-location-head">
+          <b>LOCALIZAÇÃO DO EVENTO</b>
+          <span>Você pode informar endereço, link do Google Maps ou coordenadas. Todos esses campos são opcionais.</span>
+        </div>
+        <div className="event-location-grid">
+          <label className="wide">Endereço do evento (opcional)<input name="address" placeholder="Rua, número, bairro..."/></label>
+          <label className="wide">Link do Google Maps (opcional)<input name="google_maps_url" type="url" placeholder="https://maps.app.goo.gl/..."/></label>
+          <label>Cidade (opcional)<input name="city"/></label>
+          <label>Estado (opcional)<input name="state" maxLength={2}/></label>
+          <label>País<input name="country" defaultValue="BR"/></label>
+        </div>
+        <details className="event-coordinates-toggle">
+          <summary>Informar coordenadas manualmente</summary>
+          <div className="event-coordinate-grid">
+            <label>Latitude (opcional)<input name="latitude" type="number" step="any"/></label>
+            <label>Longitude (opcional)<input name="longitude" type="number" step="any"/></label>
+          </div>
+        </details>
+      </div>
       <label>Link de ingresso<input name="ticket_url" type="url"/></label>
       <label>Site oficial<input name="source_url" type="url"/></label>
       <label className="wide">URL de imagem (opcional)<input name="image_url" type="url"/></label>

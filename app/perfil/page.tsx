@@ -79,7 +79,7 @@ export default async function Perfil(){
   try{
     const admin=createAdminClient()
     const {data}=await admin.from('events')
-      .select('id,slug,title,description,category,event_date,end_date,event_time,venue,address,city,state,image_url,ticket_url,source_url,status,featured,created_at,created_by')
+      .select('id,slug,title,description,category,event_date,end_date,event_time,venue,address,google_maps_url,latitude,longitude,city,state,image_url,ticket_url,source_url,status,featured,created_at,created_by')
       .eq('created_by',user.id)
       .order('created_at',{ascending:false})
     myEvents=data||[]

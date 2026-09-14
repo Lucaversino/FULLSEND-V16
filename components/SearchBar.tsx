@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Image from 'next/image'
 import { MapPin, Search } from 'lucide-react'
 
 const STATES = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
@@ -113,8 +114,9 @@ export default function SearchBar({
           />
         </div>
 
-        <button className="btn btn-red search-submit fs-hero-action fs-search-hero-btn" type="submit">
-          <Search size={17}/> BUSCAR
+        <button className="search-submit fs-art-button fs-search-art-button" type="submit" aria-label="Buscar anúncios">
+          <Image src="/fullsend-buscar.png" alt="" width={2048} height={682} priority/>
+          <span className="sr-only">Buscar</span>
         </button>
       </div>
 

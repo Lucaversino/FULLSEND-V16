@@ -21,6 +21,7 @@ function clean(body:any){
     event_time:body.event_time||null,
     venue:String(body.venue||'').trim()||null,
     address:String(body.address||'').trim()||null,
+    google_maps_url:String(body.google_maps_url||'').trim()||null,
     city:String(body.city||'').trim()||null,
     state:String(body.state||'').trim().toUpperCase().slice(0,2)||null,
     country:String(body.country||'BR').trim().toUpperCase()||'BR',

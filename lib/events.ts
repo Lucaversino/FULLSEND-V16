@@ -15,6 +15,7 @@ export type AutomotiveEvent={
   event_time?:string|null
   venue?:string|null
   address?:string|null
+  google_maps_url?:string|null
   city?:string|null
   state?:string|null
   country?:string|null
