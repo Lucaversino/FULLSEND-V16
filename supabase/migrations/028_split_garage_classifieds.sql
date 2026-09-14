@@ -32,7 +32,7 @@ create index if not exists listings_public_mode_status_idx
 create or replace view public.listings_public as
 select
   id,user_id,category_slug,title,slug,description,price,city,state,whatsapp,
-  cover_url,media,tags,status,source,external_url,created_at
+  cover_url,media,tags,status,source,external_url,is_featured,is_vip,created_at
 from public.listings
 where status='active'
   and coalesce(listing_mode,'classified')='classified';
