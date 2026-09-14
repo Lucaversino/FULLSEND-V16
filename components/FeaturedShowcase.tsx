@@ -6,14 +6,43 @@ import type { UnifiedListing } from '@/lib/listings'
 import { ChevronLeft, ChevronRight, Crown, Sparkles } from 'lucide-react'
 
 const MAX_VISIBLE = 10
+const LAST_FIRST_KEY = 'fullsend-featured-last-first-v1'
+
+function randomIndex(max:number){
+  if(max<=1)return 0
+  try{
+    const value=new Uint32Array(1)
+    crypto.getRandomValues(value)
+    return value[0]%max
+  }catch{
+    return Math.floor(Math.random()*max)
+  }
+}
 
 function shuffle<T>(items:T[]){
   const copy=[...items]
   for(let i=copy.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1))
+    const j=randomIndex(i+1)
     ;[copy[i],copy[j]]=[copy[j],copy[i]]
   }
   return copy
+}
+
+function randomVisible(items:UnifiedListing[]){
+  const shuffled=shuffle(items)
+
+  // Em um reload na mesma aba, evita repetir o primeiro card quando há alternativas.
+  try{
+    const lastFirst=sessionStorage.getItem(LAST_FIRST_KEY)
+    const currentFirst=shuffled[0] ? `${shuffled[0].kind}:${shuffled[0].id}` : ''
+    if(shuffled.length>1 && currentFirst===lastFirst){
+      const swapWith=1+randomIndex(shuffled.length-1)
+      ;[shuffled[0],shuffled[swapWith]]=[shuffled[swapWith],shuffled[0]]
+    }
+    if(shuffled[0])sessionStorage.setItem(LAST_FIRST_KEY,`${shuffled[0].kind}:${shuffled[0].id}`)
+  }catch{}
+
+  return shuffled.slice(0,MAX_VISIBLE)
 }
 
 export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
@@ -25,7 +54,18 @@ export default function FeaturedShowcase({items}:{items:UnifiedListing[]}){
   const [visible,setVisible]=useState<UnifiedListing[]>(()=>items.slice(0,MAX_VISIBLE))
 
   useEffect(()=>{
-    setVisible(shuffle(items).slice(0,MAX_VISIBLE))
+    positionRef.current=0
+    setVisible(randomVisible(items))
+  },[items])
+
+  useEffect(()=>{
+    const onPageShow=(event:PageTransitionEvent)=>{
+      if(!event.persisted)return
+      positionRef.current=0
+      setVisible(randomVisible(items))
+    }
+    window.addEventListener('pageshow',onPageShow)
+    return()=>window.removeEventListener('pageshow',onPageShow)
   },[items])
 
   useEffect(()=>{
