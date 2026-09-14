@@ -98,7 +98,7 @@ export default function AdminEvents(){
       <button onClick={importEvents} disabled={busy==='import'}>{busy==='import'?'IMPORTANDO...':'IMPORTAR EVENTOS'}</button>
     </div>
 
-    {importResult?<div className="admin-event-import-result"><span>Encontrados <b>{importResult.found||0}</b></span><span>Importados <b>{importResult.imported||0}</b></span><span>Atualizados <b>{importResult.updated||0}</b></span><span>Já existiam <b>{importResult.existing||0}</b></span>{importResult.errors?.length?<em>{importResult.errors.join(' • ')}</em>:null}</div>:null}
+    {importResult?<div className="admin-event-import-result"><span>Encontrados <b>{importResult.found||0}</b></span><span>Importados <b>{importResult.imported||0}</b></span><span>Atualizados <b>{importResult.updated||0}</b></span><span>Já existiam <b>{importResult.existing||0}</b></span>{importResult.diagnostics?<><span>Brasil bruto <b>{importResult.diagnostics.brazilFound||0}</b></span><span>Fallback global <b>{importResult.diagnostics.fallbackUsed?'SIM':'NÃO'}</b></span></>:null}{importResult.errors?.length?<em>{importResult.errors.join(' • ')}</em>:null}</div>:null}
     {msg?<div className="admin-toast">{msg}</div>:null}
 
     <div className="admin-events-summary"><span><CalendarDays/>TOTAL <b>{events.length}</b></span><span className="pending">PENDENTES <b>{pending}</b></span></div>

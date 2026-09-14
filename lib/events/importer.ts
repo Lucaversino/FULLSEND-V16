@@ -12,10 +12,11 @@ export async function importTicketmasterEvents(status:'pending'|'published'='pub
       updated:0,
       existing:0,
       errors:['TICKETMASTER_API_KEY não configurada no servidor.'],
+      diagnostics:null,
     }
   }
 
-  const {events,errors}=await fetchTicketmasterEvents(key)
+  const {events,errors,diagnostics}=await fetchTicketmasterEvents(key)
   const admin=createAdminClient()
   const ids=events.map((x:any)=>x.external_id)
   let existingIds=new Set<string>()
@@ -57,5 +58,6 @@ export async function importTicketmasterEvents(status:'pending'|'published'='pub
     updated,
     existing:existingIds.size,
     errors,
+    diagnostics,
   }
 }

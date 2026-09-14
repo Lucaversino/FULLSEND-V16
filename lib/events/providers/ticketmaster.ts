@@ -1,9 +1,35 @@
 import { slugifyEvent } from '@/lib/events-shared'
 
 const KEYWORDS=[
-  'car','cars','motorsport','automotive','drift','track day',
-  'car show','motor show','racing'
+  'car',
+  'cars',
+  'automotive',
+  'motorsport',
+  'motor racing',
+  'auto racing',
+  'racing',
+  'drift',
+  'drag racing',
+  'track day',
+  'car show',
+  'motor show',
+  'car meet',
+  'classic cars',
+  'stock car',
+  'formula racing',
 ]
+
+const AUTOMOTIVE_TERMS=[
+  'car','cars','automotive','motorsport','motor sport','motor racing','auto racing',
+  'racing','race','drift','drag racing','track day','car show','motor show','car meet',
+  'classic car','classic cars','stock car','formula','automobile','automobilismo',
+  'corrida','arrancada','encontro de carros','exposição de carros'
+]
+
+function looksAutomotive(text:string){
+  const t=text.toLowerCase()
+  return AUTOMOTIVE_TERMS.some(term=>t.includes(term))
+}
 
 function categoryFromText(text:string){
   const t=text.toLowerCase()
@@ -15,7 +41,7 @@ function categoryFromText(text:string){
   if(/off.?road|4x4/.test(t))return 'Off-road'
   if(/som automot|car audio/.test(t))return 'Som Automotivo'
   if(/expo|show|motor show|car show/.test(t))return 'Exposição'
-  if(/racing|motorsport|corrida/.test(t))return 'Motorsport'
+  if(/racing|motorsport|corrida|formula|stock car/.test(t))return 'Motorsport'
   if(/meet|encontro/.test(t))return 'Encontro'
   return 'Outros'
 }
@@ -30,34 +56,68 @@ function stateCode(venue:any){
   return venue?.state?.stateCode||venue?.state?.name||null
 }
 
+async function requestTicketmaster(apiKey:string, keyword:string, countryCode?:string){
+  const qs=new URLSearchParams({
+    apikey:apiKey,
+    keyword,
+    size:'100',
+    sort:'date,asc',
+  })
+  if(countryCode)qs.set('countryCode',countryCode)
+
+  const response=await fetch(`https://app.ticketmaster.com/discovery/v2/events.json?${qs}`,{
+    cache:'no-store',
+    headers:{Accept:'application/json'},
+  })
+
+  if(!response.ok)throw new Error(`Ticketmaster ${response.status}`)
+  const json=await response.json()
+  return json?._embedded?.events||[]
+}
+
 export async function fetchTicketmasterEvents(apiKey:string){
   const collected=new Map<string,any>()
   const errors:string[]=[]
+  let brazilFound=0
+  let globalFound=0
 
+  // 1) Prioridade Brasil.
   for(const keyword of KEYWORDS){
     try{
-      const qs=new URLSearchParams({
-        apikey:apiKey,
-        keyword,
-        countryCode:'BR',
-        size:'50',
-        sort:'date,asc',
-      })
-      const response=await fetch(`https://app.ticketmaster.com/discovery/v2/events.json?${qs}`,{
-        cache:'no-store',
-        headers:{Accept:'application/json'},
-      })
-      if(!response.ok){
-        errors.push(`${keyword}: Ticketmaster ${response.status}`)
-        continue
-      }
-      const json=await response.json()
-      const events=json?._embedded?.events||[]
+      const events=await requestTicketmaster(apiKey,keyword,'BR')
+      brazilFound+=events.length
       for(const e of events){
         if(e?.id)collected.set(String(e.id),e)
       }
     }catch(err){
-      errors.push(`${keyword}: ${err instanceof Error?err.message:String(err)}`)
+      errors.push(`BR / ${keyword}: ${err instanceof Error?err.message:String(err)}`)
+    }
+  }
+
+  // 2) Fallback global somente quando o Brasil vier vazio.
+  // Isso evita uma tela vazia e permite validar a integração.
+  if(collected.size===0){
+    for(const keyword of KEYWORDS){
+      try{
+        const events=await requestTicketmaster(apiKey,keyword)
+        globalFound+=events.length
+        for(const e of events){
+          const venue=e?._embedded?.venues?.[0]||{}
+          const classifications=Array.isArray(e?.classifications)?e.classifications:[]
+          const text=[
+            e?.name,
+            e?.info,
+            e?.pleaseNote,
+            venue?.name,
+            ...classifications.map((c:any)=>[
+              c?.segment?.name,c?.genre?.name,c?.subGenre?.name
+            ].filter(Boolean).join(' '))
+          ].filter(Boolean).join(' ')
+          if(e?.id && looksAutomotive(text))collected.set(String(e.id),e)
+        }
+      }catch(err){
+        errors.push(`GLOBAL / ${keyword}: ${err instanceof Error?err.message:String(err)}`)
+      }
     }
   }
 
@@ -70,13 +130,16 @@ export async function fetchTicketmasterEvents(apiKey:string){
       title,
       e?.info,
       e?.pleaseNote,
+      venue?.name,
       ...(Array.isArray(e?.classifications)?e.classifications.map((c:any)=>[
         c?.segment?.name,c?.genre?.name,c?.subGenre?.name
       ].filter(Boolean).join(' ')):[])
     ].filter(Boolean).join(' ')
     const city=venue?.city?.name||null
     const state=stateCode(venue)
+    const country=venue?.country?.countryCode||'BR'
     const baseSlug=slugifyEvent([title,city,state,date?.slice(0,4)].filter(Boolean).join(' '))
+
     return {
       external_id:String(e.id),
       slug:`${baseSlug}-${String(e.id).slice(-6).toLowerCase()}`,
@@ -90,7 +153,7 @@ export async function fetchTicketmasterEvents(apiKey:string){
       address:venue?.address?.line1||null,
       city,
       state,
-      country:venue?.country?.countryCode||'BR',
+      country,
       latitude:venue?.location?.latitude?Number(venue.location.latitude):null,
       longitude:venue?.location?.longitude?Number(venue.location.longitude):null,
       image_url:bestImage(e?.images||[]),
@@ -100,5 +163,13 @@ export async function fetchTicketmasterEvents(apiKey:string){
     }
   }).filter((x:any)=>Boolean(x.event_date))
 
-  return {events:normalized,errors}
+  return {
+    events:normalized,
+    errors,
+    diagnostics:{
+      brazilFound,
+      globalFound,
+      fallbackUsed:brazilFound===0,
+    }
+  }
 }
