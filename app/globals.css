@@ -3623,3 +3623,186 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 .profile-event-modal-actions button{min-height:38px;border:0;border-radius:8px;padding:0 14px;background:#ed2635;color:#fff;font-size:9px;font-weight:1000}.profile-event-modal-actions button.ghost{background:#19191d;border:1px solid #35353c}
 @media(max-width:950px){.profile-events-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.profile-events-grid{grid-template-columns:1fr}.profile-events-head{align-items:flex-start;flex-direction:column}.profile-events-head-right{width:100%;justify-content:space-between}.profile-event-form-grid{grid-template-columns:1fr}.profile-event-form-grid label.wide{grid-column:auto}}
+
+
+/* FULLSEND V17.2.3 — Garagem: ativar/desativar carro nos classificados */
+.user-ad-actions{
+  flex-wrap:wrap;
+}
+.user-ad-actions button.classified-toggle{
+  min-width:148px;
+  justify-content:center;
+  transition:border-color .16s ease,background .16s ease,color .16s ease,box-shadow .16s ease;
+}
+.user-ad-actions button.classified-toggle.on{
+  border-color:#6a2b31;
+  background:#1b0d10;
+  color:#ff6a74;
+}
+.user-ad-actions button.classified-toggle.on:hover{
+  border-color:#ff3d4a;
+  background:#260d12;
+  box-shadow:0 0 18px rgba(240,38,54,.10);
+}
+.user-ad-actions button.classified-toggle.off{
+  border-color:#236043;
+  background:#0c1812;
+  color:#70daa1;
+}
+.user-ad-actions button.classified-toggle.off:hover{
+  border-color:#42c982;
+  background:#0d2117;
+  box-shadow:0 0 18px rgba(67,201,132,.10);
+}
+.user-ad-actions button.classified-toggle:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+.user-ad-success{
+  margin-top:5px;
+  font-size:7px;
+  color:#72d59e;
+}
+.user-status.paused{
+  border-color:#5c4b1f;
+  color:#e7c75d;
+  background:#171307;
+}
+.user-status.sold{
+  border-color:#44505c;
+  color:#aab4be;
+  background:#101419;
+}
+.user-status.blocked{
+  border-color:#68252f;
+  color:#ff6f7a;
+  background:#1b0c10;
+}
+@media(max-width:620px){
+  .user-ad-actions button.classified-toggle{
+    width:100%;
+    min-width:0;
+  }
+}
+
+
+/* FULLSEND V17.2.4 — Minha Garagem separada dos Classificados */
+.user-garage-projects-panel{
+  margin-top:22px;
+  padding:18px;
+  border:1px solid #29292f;
+  border-radius:16px;
+  background:linear-gradient(180deg,#0e0e11,#0a0a0d);
+}
+.user-garage-projects-panel .user-ads-head p,
+.user-ads-panel .user-ads-head p{
+  margin:5px 0 0;
+  max-width:720px;
+  color:#85858e;
+  font-size:10px;
+  line-height:1.45;
+}
+.garage-head-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.garage-head-actions small{color:#8f8f98;font-size:9px}
+.garage-project-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+}
+.garage-project-card{
+  overflow:hidden;
+  border:1px solid #2b2b31;
+  border-radius:13px;
+  background:#111114;
+}
+.garage-project-cover{
+  position:relative;
+  display:block;
+  aspect-ratio:16/10;
+  overflow:hidden;
+  background:#18181d;
+}
+.garage-project-cover img{width:100%;height:100%;object-fit:cover}
+.garage-project-cover>div{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#55555d}
+.garage-project-label{
+  position:absolute;
+  left:9px;
+  bottom:9px;
+  padding:5px 7px;
+  border:1px solid #75303a;
+  border-radius:6px;
+  background:rgba(26,8,11,.88);
+  color:#ff6974;
+  font-size:8px;
+  font-weight:1000;
+  letter-spacing:.55px;
+}
+.garage-project-body{padding:12px}
+.garage-project-body>small{color:#ff4652;font-size:8px;font-weight:900}
+.garage-project-body h3{margin:4px 0;font-size:14px}
+.garage-project-body>p{margin:0;color:#8f8f98;font-size:9px}
+.garage-project-links{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+.garage-project-links a{
+  padding:6px 8px;
+  border:1px solid #33333a;
+  border-radius:7px;
+  background:#17171b;
+  color:#ddd;
+  font-size:8px;
+  font-weight:900;
+}
+.garage-project-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px;
+  margin-top:10px;
+}
+.garage-project-actions button{
+  min-height:34px;
+  border:1px solid #34343b;
+  border-radius:8px;
+  background:#16161a;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  font-size:8px;
+  font-weight:1000;
+  cursor:pointer;
+}
+.garage-project-actions button.danger{
+  border-color:#5f2028;
+  background:#210b0e;
+  color:#ff6872;
+}
+.garage-mode-notice{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:14px;
+  padding:14px;
+  border:1px solid #4b1b21;
+  border-radius:12px;
+  background:linear-gradient(135deg,#18090c,#101014);
+}
+.garage-mode-notice>svg{color:#ff3c49}
+.garage-mode-notice div{display:grid;gap:3px}
+.garage-mode-notice b{font-size:11px}
+.garage-mode-notice span{color:#9999a2;font-size:10px;line-height:1.4}
+@media(max-width:980px){
+  .garage-project-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:620px){
+  .garage-project-grid{grid-template-columns:1fr}
+  .garage-head-actions{width:100%;justify-content:space-between}
+}

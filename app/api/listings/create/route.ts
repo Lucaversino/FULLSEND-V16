@@ -54,6 +54,7 @@ export async function POST(req:Request){
     media,
     tags,
     source:'fullsend',
+    listing_mode:'classified',
     status:'active',
     is_featured:false,
     is_vip:false,

@@ -28,7 +28,7 @@ export async function GET(req:Request){try{
   if(!user)throw new CommunityError('Entre na sua conta.',401)
   // Busca paginada de carros/eventos; não carrega toda a garagem de uma só vez.
   const kind=q.get('kind')||'vehicles';const search=(q.get('q')||'').slice(0,100).replace(/[%_]/g,'')
-  let query=kind==='events'?s.from('events').select('id,title,slug,status').eq('created_by',user.id):s.from('listings').select('id,title,slug').eq('user_id',user.id)
+  let query=kind==='events'?s.from('events').select('id,title,slug,status').eq('created_by',user.id):s.from('listings').select('id,title,slug,status').eq('user_id',user.id).eq('listing_mode','garage')
   if(search)query=query.ilike('title',`%${search}%`)
   const {data}=checked(await query.order('created_at',{ascending:false}).range((page-1)*20,page*20))
   return NextResponse.json({items:(data||[]).slice(0,20),hasMore:(data||[]).length>20})
@@ -40,7 +40,7 @@ export async function GET(req:Request){try{
  let people:any[]=[],cars:any[]=[]
  if(args.p_query&&page===1){
   const term=args.p_query.replace(/[%_]/g,'')
-  const [p,v]=await Promise.all([s.from('profiles').select('id,name,avatar_url,city,state').ilike('name',`%${term}%`).limit(10),s.from('listings').select('id,title,cover_url').eq('status','active').ilike('title',`%${term}%`).limit(10)])
+  const [p,v]=await Promise.all([s.from('profiles').select('id,name,avatar_url,city,state').ilike('name',`%${term}%`).limit(10),s.from('listings').select('id,title,cover_url').eq('status','active').eq('listing_mode','garage').ilike('title',`%${term}%`).limit(10)])
   people=checked(p).data||[];cars=checked(v).data||[]
  }
  return NextResponse.json({...data,items:await signedMedia(s,data?.items||[]),people,cars,viewer:user?.id||null,isAdmin:profile?.role==='admin',city:profile?.city||'',state:profile?.state||''})

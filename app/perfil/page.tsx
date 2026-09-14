@@ -6,6 +6,7 @@ import { Plus, Car, BadgeCheck, Sparkles, ChevronRight, MessageSquareText, Zap }
 import UserBadge from '@/components/UserBadge'
 import ProfileOverview from '@/components/ProfileOverview'
 import UserListingActions from '@/components/UserListingActions'
+import GarageVehicleActions from '@/components/GarageVehicleActions'
 import DirectMessageButton from '@/components/DirectMessageButton'
 import FollowUserButton from '@/components/FollowUserButton'
 import ListingBoostButton from '@/components/ListingBoostButton'
@@ -87,12 +88,14 @@ export default async function Perfil(){
   const [{data:p},{data:a,error:adsError}]=await Promise.all([
     s.from('profiles').select('*').eq('id',user.id).maybeSingle(),
     s.from('listings')
-      .select('id,title,status,created_at,slug,is_featured,is_vip,cover_url,media,description,category_slug,tags,whatsapp,price,city,state,brand,model,year,mileage,fuel,transmission,vehicle_styles,color,body_type,engine,power_cv,doors,condition,features')
+      .select('id,title,status,created_at,slug,is_featured,is_vip,cover_url,media,description,category_slug,tags,whatsapp,price,city,state,brand,model,year,mileage,fuel,transmission,vehicle_styles,color,body_type,engine,power_cv,doors,condition,features,listing_mode')
       .eq('user_id',user.id)
       .order('created_at',{ascending:false})
   ])
 
-  const ads=a||[]
+  const allItems=a||[]
+  const ads=allItems.filter((x:any)=>x.listing_mode!=='garage')
+  const garageCars=allItems.filter((x:any)=>x.listing_mode==='garage'&&x.category_slug==='carros')
   const active=ads.filter((x:any)=>x.status==='active').length
   const featured=ads.filter((x:any)=>x.is_featured).length
   const vipAds=ads.filter((x:any)=>x.is_vip).length
@@ -102,13 +105,13 @@ export default async function Perfil(){
     <div className="container user-dashboard-container">
       <div className="user-dashboard-head">
         <div>
-          <span className="section-kicker">MINHA GARAGEM</span>
+          <span className="section-kicker">PAINEL FULLSEND</span>
           <h1>PAINEL DO USUÁRIO</h1>
-          <p>Seu perfil e seus anúncios organizados em um painel simples e profissional.</p>
+          <p>Seus classificados, sua garagem pessoal, comunidade e eventos em áreas separadas.</p>
         </div>
         <div className="user-dashboard-top-actions">
           <Link className="user-messages-cta" href="/mensagens"><MessageSquareText size={16}/><span><b>MENSAGENS</b><small>{unreadMessages?`${unreadMessages} não lida${unreadMessages===1?'':'s'}`:'Caixa de entrada'}</small></span>{unreadMessages?<em>{unreadMessages}</em>:null}</Link>
-          <Link className="btn btn-red fx-main-btn fx-main-btn-red fs-hero-action" href="/anunciar"><Plus size={16}/> NOVO ANÚNCIO</Link>
+          <Link className="btn fx-main-btn" href="/garagem/adicionar"><Plus size={16}/> ADICIONAR À GARAGEM</Link><Link className="btn btn-red fx-main-btn fx-main-btn-red fs-hero-action" href="/anunciar"><Plus size={16}/> NOVO ANÚNCIO</Link>
         </div>
       </div>
 
@@ -116,9 +119,9 @@ export default async function Perfil(){
       <ReputationPanel xp={Number((p as any)?.xp_points||0)} level={(p as any)?.reputation_level||'ROOKIE'} history={xpHistory}/>
 
       <section className="user-stats">
-        <article><Car size={18}/><div><small>ANÚNCIOS</small><b>{ads.length}</b></div></article>
+        <article><Car size={18}/><div><small>CLASSIFICADOS</small><b>{ads.length}</b></div></article>
         <article><BadgeCheck size={18}/><div><small>ATIVOS</small><b>{active}</b></div></article>
-        <article><Sparkles size={18}/><div><small>DESTAQUES</small><b>{featured}</b></div></article>
+        <article><Sparkles size={18}/><div><small>MINHA GARAGEM</small><b>{garageCars.length}</b></div></article>
         <article><Zap size={18}/><div><small>IMPULSIONADOS</small><b>{boosted}</b></div></article>
       </section>
 
@@ -152,10 +155,37 @@ export default async function Perfil(){
       </section>
 
       <section className="user-contacts-panel"><div className="user-ads-head"><div><span>REDE FULLSEND</span><h2>COMUNIDADE</h2></div></div><div className="user-dashboard-top-actions"><Link className="btn btn-red" href="/comunidade">ABRIR COMUNIDADE</Link><Link className="btn" href="/comunidade/salvos">PUBLICAÇÕES SALVAS</Link><Link className="btn" href={`/comunidade/usuario/${user.id}`}>MEU PERFIL PÚBLICO</Link></div></section>
+      <section className="user-garage-projects-panel">
+        <div className="user-ads-head">
+          <div><span>MEUS CARROS</span><h2>MINHA GARAGEM</h2><p>Carros e projetos que são realmente seus. Eles aparecem na Comunidade FULLSEND e não nos classificados.</p></div>
+          <div className="garage-head-actions"><small>{garageCars.length} carro{garageCars.length===1?'':'s'}</small><Link className="btn btn-red" href="/garagem/adicionar"><Plus size={14}/> ADICIONAR CARRO</Link></div>
+        </div>
+        {garageCars.length?(
+          <div className="garage-project-grid">
+            {garageCars.map((x:any)=><article key={x.id} className="garage-project-card">
+              <Link href={`/comunidade/projeto/${x.id}`} className="garage-project-cover">
+                {x.cover_url?<img src={x.cover_url} alt={x.title}/>:<div><Car size={34}/><span>SEM FOTO</span></div>}
+                <span className="garage-project-label">MEU PROJETO</span>
+              </Link>
+              <div className="garage-project-body">
+                <small>{[x.brand,x.model,x.year].filter(Boolean).join(' · ')}</small>
+                <h3>{x.title}</h3>
+                <p>{x.city||'Brasil'}{x.state?` / ${x.state}`:''}{x.power_cv?` • ${x.power_cv} cv`:''}</p>
+                <div className="garage-project-links">
+                  <Link href={`/comunidade/projeto/${x.id}`}>DIÁRIO DO PROJETO</Link>
+                  <Link href={`/comunidade?vehicle=${x.id}`}>POSTS DO CARRO</Link>
+                </div>
+                <GarageVehicleActions vehicle={x}/>
+              </div>
+            </article>)}
+          </div>
+        ):<div className="user-empty-garage"><Car size={42}/><h3>SUA GARAGEM PESSOAL ESTÁ VAZIA</h3><p>Adicione seu próprio carro ou projeto para usar na Comunidade FULLSEND.</p><Link href="/garagem/adicionar">ADICIONAR MEU CARRO</Link></div>}
+      </section>
+
       <UserEventsPanel events={myEvents}/>
 
       <section className="user-ads-panel">
-        <div className="user-ads-head"><div><span>MINHA GARAGEM</span><h2>MEUS ANÚNCIOS</h2></div><small>{ads.length} anúncio{ads.length===1?'':'s'}</small></div>
+        <div className="user-ads-head"><div><span>CLASSIFICADOS</span><h2>MEUS ANÚNCIOS À VENDA</h2><p>Veículos e itens que você está anunciando. Aqui você pode ativar, pausar, editar e excluir.</p></div><small>{ads.length} anúncio{ads.length===1?'':'s'}</small></div>
         {adsError?<div className="user-dashboard-warning">Não foi possível carregar os anúncios agora. Atualize a página.</div>:null}
         {ads.length?(
           <div className="user-ad-list">
@@ -165,20 +195,19 @@ export default async function Perfil(){
                 {x.is_vip?<span className="user-ad-badge vip">VIP</span>:x.is_featured?<span className="user-ad-badge featured">DESTAQUE</span>:null}
               </Link>
               <div className="user-ad-body">
-                <div className="user-ad-title-row"><div><h3>{x.title}</h3><p>{x.city||'Brasil'}{x.state?` / ${x.state}`:''}</p></div><span className={`user-status ${x.status==='active'?'active':''}`}>{String(x.status).toUpperCase()}</span></div>
+                <div className="user-ad-title-row"><div><h3>{x.title}</h3><p>{x.city||'Brasil'}{x.state?` / ${x.state}`:''}</p></div><span className={`user-status ${x.status==='active'?'active':x.status==='draft'?'paused':x.status==='sold'?'sold':x.status==='blocked'?'blocked':''}`}>{x.status==='active'?'NOS CLASSIFICADOS':x.status==='draft'?'FORA DOS CLASSIFICADOS':x.status==='sold'?'VENDIDO':x.status==='blocked'?'BLOQUEADO':String(x.status).toUpperCase()}</span></div>
                 <strong>{money(x.price)}</strong>
                 <div className="user-ad-bottom">
                   <Link href={`/anuncio/${x.slug}`} className="user-view-ad">VER ANÚNCIO <ChevronRight size={14}/></Link>
                   <div className="user-ad-management">
                     <ListingBoostButton listingId={x.id} title={x.title} status={x.status} initialVip={Boolean(x.is_vip)} initialFeatured={Boolean(x.is_featured)}/>
-                    <Link className="user-view-ad" href={`/comunidade/projeto/${x.id}`}>DIÁRIO DO PROJETO</Link>
                     <UserListingActions listing={x}/>
                   </div>
                 </div>
               </div>
             </article>)}
           </div>
-        ):<div className="user-empty-garage"><Car size={42}/><h3>SUA GARAGEM ESTÁ VAZIA</h3><p>Publique seu primeiro anúncio no FULLSEND.</p><Link href="/anunciar">CRIAR ANÚNCIO</Link></div>}
+        ):<div className="user-empty-garage"><Car size={42}/><h3>VOCÊ NÃO POSSUI ANÚNCIOS</h3><p>Publique um veículo ou item nos classificados FULLSEND.</p><Link href="/anunciar">CRIAR ANÚNCIO</Link></div>}
       </section>
     </div>
   </main>

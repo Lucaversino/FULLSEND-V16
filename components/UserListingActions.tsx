@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Edit3, Trash2, X, Save, UploadCloud, Image as ImageIcon, Star,
   ArrowLeft, ArrowRight, CheckCircle2, AlertTriangle, Car, MapPin,
-  Phone, FileText, Tag, BadgeDollarSign
+  Phone, FileText, Tag, BadgeDollarSign, Power, EyeOff
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import VehicleBrandModelFields from '@/components/VehicleBrandModelFields'
@@ -40,6 +40,8 @@ export default function UserListingActions({listing}:{listing:any}){
   const [message,setMessage]=useState('')
   const [success,setSuccess]=useState('')
   const [dirty,setDirty]=useState(false)
+  const [visibilityBusy,setVisibilityBusy]=useState(false)
+  const [currentStatus,setCurrentStatus]=useState(String(listing.status||'draft'))
   const [media,setMedia]=useState<ListingMedia[]>(()=>normalizeMedia(listing.media,listing.cover_url))
   const [removedUrls,setRemovedUrls]=useState<string[]>([])
   const fileRef=useRef<HTMLInputElement|null>(null)
@@ -207,6 +209,7 @@ export default function UserListingActions({listing}:{listing:any}){
       setMedia(uploaded)
       setRemovedUrls([])
       setDirty(false)
+      setCurrentStatus(status)
       setSuccess('Anúncio atualizado com sucesso.')
       router.refresh()
       setTimeout(()=>setEditing(false),900)
@@ -230,12 +233,83 @@ export default function UserListingActions({listing}:{listing:any}){
     router.refresh()
   }
 
+  async function toggleClassificados(){
+    if(visibilityBusy||busy)return
+
+    if(currentStatus==='sold'){
+      setMessage('Este carro está marcado como vendido. Use EDITAR para alterar o status.')
+      return
+    }
+
+    if(currentStatus==='blocked'){
+      setMessage('Este anúncio está bloqueado pela administração.')
+      return
+    }
+
+    const enabling=currentStatus!=='active'
+    const action=enabling?'ATIVAR':'DESATIVAR'
+
+    if(!window.confirm(
+      enabling
+        ?'Ativar este carro nos classificados? Ele voltará a aparecer nas buscas e na página inicial.'
+        :'Desativar este carro dos classificados? Ele ficará salvo na sua garagem, mas deixará de aparecer publicamente.'
+    ))return
+
+    setVisibilityBusy(true)
+    setMessage('')
+    setSuccess('')
+
+    try{
+      const r=await fetch('/api/listings/visibility',{
+        method:'PATCH',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({id:listing.id,enabled:enabling}),
+      })
+      const j=await r.json().catch(()=>({}))
+
+      if(!r.ok)throw new Error(j.error||`Não foi possível ${action.toLowerCase()} o carro.`)
+
+      setCurrentStatus(String(j.status|| (enabling?'active':'draft')))
+      setSuccess(j.message||(
+        enabling
+          ?'Carro ativado nos classificados.'
+          :'Carro desativado dos classificados.'
+      ))
+      router.refresh()
+    }catch(err){
+      setMessage(err instanceof Error?err.message:'Não foi possível alterar a visibilidade do carro.')
+    }finally{
+      setVisibilityBusy(false)
+    }
+  }
+
   return <>
     <div className="user-ad-actions">
+      {listing.category_slug==='carros'&&listing.listing_mode!=='garage'?(
+        <button
+          type="button"
+          className={`classified-toggle ${currentStatus==='active'?'on':'off'}`}
+          onClick={toggleClassificados}
+          disabled={visibilityBusy||currentStatus==='blocked'}
+          title={currentStatus==='active'?'Retirar dos classificados':'Publicar nos classificados'}
+        >
+          {currentStatus==='active'?<EyeOff size={14}/>:<Power size={14}/>}
+          {visibilityBusy
+            ?' ALTERANDO...'
+            :currentStatus==='active'
+              ?' DESATIVAR CLASSIFICADOS'
+              :currentStatus==='sold'
+                ?' VENDIDO'
+                :currentStatus==='blocked'
+                  ?' BLOQUEADO'
+                  :' ATIVAR CLASSIFICADOS'}
+        </button>
+      ):null}
       <button type="button" onClick={openEditor}><Edit3 size={14}/> EDITAR</button>
       <button type="button" className="danger" onClick={remove} disabled={busy}><Trash2 size={14}/> EXCLUIR</button>
     </div>
     {message&&!editing?<div className="user-ad-error">{message}</div>:null}
+    {success&&!editing?<div className="user-ad-success">{success}</div>:null}
 
     {editing?(
       <div className="user-edit-backdrop" onMouseDown={e=>{if(e.currentTarget===e.target)requestClose()}}>
