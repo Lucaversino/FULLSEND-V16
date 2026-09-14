@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Users, Car, Sparkles, Crown, ShieldCheck, Search, Save, Trash2, Gauge, ExternalLink, Database, BadgeCheck, Megaphone, BrainCircuit, ScanSearch, CheckCircle2, XCircle, Radar, Play, Power, MapPin, RefreshCw, Clock3, Plus, Activity, CalendarDays } from 'lucide-react'
+import { Users, Car, Sparkles, Crown, ShieldCheck, Search, Save, Trash2, Gauge, ExternalLink, Database, BadgeCheck, Megaphone, BrainCircuit, ScanSearch, CheckCircle2, XCircle, Radar, Play, Power, MapPin, RefreshCw, Clock3, Plus, Activity, CalendarDays, Zap } from 'lucide-react'
 import UserBadge from '@/components/UserBadge'
 import ReputationBadge from '@/components/ReputationBadge'
 import { reputationProgress } from '@/lib/reputation'
