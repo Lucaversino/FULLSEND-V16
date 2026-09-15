@@ -42,7 +42,7 @@ async function run(create:boolean){try{
  if(fresh.error)throw fresh.error
  const profile=await admin.from('profiles').select('is_verified').eq('id',user.id).single()
  if(profile.error)throw profile.error
- return NextResponse.json({active:profile.data.is_verified,status:fresh.data.status,qr_code:fresh.data.qr_code,qr_code_base64:fresh.data.qr_code_base64},{headers:{'Cache-Control':'private, no-store'}})
+ return NextResponse.json({active:profile.data.is_verified,status:fresh.data.status,ticket_url:payment?.point_of_interaction?.transaction_data?.ticket_url||null},{headers:{'Cache-Control':'private, no-store'}})
  }catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Não foi possível processar o selo.'},{status:503})}}
 export async function POST(){return run(true)}
 export async function GET(){return run(false)}
