@@ -4,7 +4,7 @@
  .site-header .header-inner{height:64px;min-height:64px;gap:8px;flex-wrap:nowrap}
  .site-header .brand{flex:0 1 142px;min-width:0}.site-header .brand img{width:100%;max-width:142px;height:auto}
  .site-header .header-spacer{display:none}.site-header .header-actions{gap:7px;flex-wrap:nowrap;min-width:0}
- .site-header .fs-create-account-art-button,.site-header .fs-announce-art-button,.site-header .logout-link{display:none!important}
+ .site-header .fs-create-account-art-button,.site-header .fs-announce-art-button{display:none!important}
  .site-header .user-panel-header-link,.site-header .icon-link,.site-header .login-link,.site-header .admin-header-link{min-width:40px;width:40px;height:40px;min-height:40px;padding:0;display:flex;align-items:center;justify-content:center;font-size:0;flex-shrink:0;border-radius:10px}
  .site-header .user-panel-header-link span,.site-header .login-link span{display:none}.site-header .login-link svg{display:block}.site-header .admin-header-link svg{flex-shrink:0}
  .mobile-quick-actions{display:block;position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:60}
@@ -33,4 +33,13 @@
  .filters-sidebar>.filters-events-button img{width:100%;height:64px;object-fit:contain}
  .mobile-style-shortcuts{display:block;grid-column:1/-1;min-width:0}.mobile-style-shortcuts .style-banner-heading{display:none}.mobile-style-shortcuts .style-banner-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.mobile-style-shortcuts .style-banner-section{margin:0;padding:0}.mobile-style-shortcuts .style-banner-card{min-height:44px;aspect-ratio:3.32/1;padding:0}.mobile-style-shortcuts .style-banner-card img{width:100%;height:100%;object-fit:contain}
  .filters-sidebar .mobile-filters{grid-column:1/-1;margin:0}.mobile-filters .filter-style-visual{display:none}.filters-sidebar .desktop-filters{display:none}
+}
+
+/* V17.5.3: saída compacta no cabeçalho, mantendo os demais controles. */
+.logout-mobile-icon{display:none}
+@media(max-width:820px){
+ .site-header .logout-link{display:flex!important;align-items:center;justify-content:center;width:40px;min-width:40px;height:40px;padding:0;flex-shrink:0;border:1px solid #34343c;border-radius:10px;background:#17171c;color:#eee}
+ .site-header .logout-link span{display:none}
+ .site-header .logout-mobile-icon{display:block}
+ .site-header .logout-link:focus-visible{outline:2px solid #ff6075;outline-offset:2px}
 }
