@@ -4057,3 +4057,199 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
   .copilot-bubble p{font-size:14px}
   .copilot-car{grid-template-columns:106px 1fr}
 }
+
+/* ==========================================================
+   FULLSEND V17.6.1 — CHAT & COPILOT PRO UI
+   Tipografia de leitura inspirada em apps sociais modernos.
+   Mantém a identidade visual FULLSEND, mas prioriza legibilidade.
+   ========================================================== */
+
+:root{
+  --fs-chat-font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+
+/* ---------- Chat flutuante ---------- */
+.mini-chat-window,
+.mini-chat-window input,
+.mini-chat-window textarea,
+.mini-chat-window button,
+.mini-chat-window a,
+.floating-messages-button{
+  font-family:var(--fs-chat-font)!important;
+}
+
+.mini-chat-window{
+  width:min(470px,calc(100vw - 28px));
+  height:min(690px,calc(100vh - 125px));
+}
+.mini-chat-head{height:74px;padding:0 16px}
+.mini-chat-brand{gap:11px}
+.mini-chat-brand>span{width:42px;height:42px;border-radius:13px}
+.mini-chat-brand small{font-size:10px;line-height:1.1;letter-spacing:1.35px}
+.mini-chat-brand b{font-size:20px;line-height:1.15;margin-top:3px;letter-spacing:.2px}
+.mini-chat-head-actions a{font-size:12px;padding:8px 10px}
+.mini-chat-head-actions button{width:36px;height:36px}
+
+.mini-chat-tabs button{
+  height:48px;
+  font-size:12px;
+  letter-spacing:.15px;
+  gap:8px;
+}
+.mini-chat-search{height:48px;margin:11px 12px 10px;padding:0 12px;border-radius:12px}
+.mini-chat-search input{font-size:15px!important;line-height:1.35!important}
+
+.mini-chat-active-head{
+  height:68px;
+  padding:9px 12px;
+  grid-template-columns:34px 46px minmax(0,1fr);
+  gap:10px;
+}
+.mini-chat-active-head>button{width:34px;height:34px}
+.mini-chat-active-head .mini-person-avatar{width:46px;height:46px}
+.mini-chat-active-head b{font-size:15px;line-height:1.25}
+.mini-chat-active-head small{font-size:12px;line-height:1.25;margin-top:3px;color:#9ba2aa}
+
+.mini-chat-body{padding:0 10px 10px}
+.mini-chat-body.thread{padding:12px 11px 14px}
+.mini-chat-loading{font-size:14px}
+.mini-chat-empty b{font-size:14px;line-height:1.3;color:#e0e4e8}
+.mini-chat-empty p{font-size:13px;line-height:1.45;color:#9299a1;max-width:280px}
+
+.mini-conv-row{
+  grid-template-columns:50px minmax(0,1fr);
+  gap:11px;
+  padding:12px 9px;
+  border-radius:11px;
+}
+.mini-person-avatar{width:50px;height:50px}
+.mini-person-avatar span{font-size:16px}
+.mini-conv-copy b{font-size:15px;line-height:1.25;font-weight:700}
+.mini-conv-copy em{min-width:20px;height:20px;font-size:10px}
+.mini-conv-copy small{font-size:12px;line-height:1.3;margin-top:3px;color:#58bde1}
+.mini-conv-copy p{font-size:13px;line-height:1.35;margin-top:4px;color:#9aa1a8}
+
+.mini-thread{gap:10px}
+.mini-message-bubble{
+  max-width:86%;
+  padding:10px 12px;
+  border-radius:16px 16px 16px 5px;
+}
+.mini-message-row.mine .mini-message-bubble{border-radius:16px 16px 5px 16px}
+.mini-message-bubble>p{
+  font-size:15px!important;
+  line-height:1.5!important;
+  letter-spacing:0!important;
+  font-weight:400!important;
+}
+.mini-message-bubble>small{
+  font-size:10px!important;
+  line-height:1.25!important;
+  margin-top:6px;
+  color:#a0a8af!important;
+}
+
+.mini-chat-compose-wrap{padding:9px 10px 10px}
+.mini-chat-compose{grid-template-columns:42px minmax(0,1fr) 44px;gap:8px}
+.mini-chat-compose button{height:44px;border-radius:12px}
+.mini-chat-compose textarea{
+  min-height:44px;
+  max-height:112px;
+  padding:11px 12px;
+  border-radius:12px;
+  font-size:16px!important;
+  line-height:1.4!important;
+}
+.mini-chat-security{font-size:10px;line-height:1.3;margin-top:7px;color:#858c94}
+.message-pending-files span,.mini-pending-files span{font-size:12px;padding:6px 9px}
+.chat-attachment-copy b{font-size:13px}
+.chat-attachment-copy small{font-size:11px!important}
+
+.floating-messages-copy b{font-size:13px;line-height:1.1}
+.floating-messages-copy small{font-size:10px;line-height:1.2;margin-top:3px}
+
+/* ---------- Central de mensagens ---------- */
+.messages-shell,
+.messages-shell input,
+.messages-shell textarea,
+.messages-shell button,
+.messages-shell a{
+  font-family:var(--fs-chat-font)!important;
+}
+.messages-list-head span{font-size:11px!important;letter-spacing:1px}
+.messages-list-head h2{font-size:22px!important;line-height:1.2}
+.messages-search{height:44px;border-radius:11px}
+.messages-search input{font-size:15px!important}
+.messages-conv{grid-template-columns:50px 1fr;gap:11px;padding:12px}
+.messages-avatar{width:50px;height:50px}
+.messages-conv-top strong{font-size:15px!important;line-height:1.25}
+.messages-conv-top b{font-size:11px!important}
+.messages-conv-copy>small{font-size:12px!important;line-height:1.3}
+.messages-conv-copy p{font-size:13px!important;line-height:1.4!important;color:#939ba3}
+.messages-empty-small{font-size:13px!important}
+.messages-chat-head{min-height:72px;padding:11px 16px;gap:12px}
+.messages-chat-head strong{font-size:16px!important;line-height:1.25}
+.messages-chat-head a,.messages-chat-head small{font-size:12px!important;line-height:1.3}
+.messages-thread{padding:18px}
+.message-bubble{padding:11px 14px!important;border-radius:15px}
+.message-bubble p{font-size:15px!important;line-height:1.5!important;font-weight:400!important}
+.message-bubble small{font-size:10px!important;line-height:1.25!important;margin-top:6px}
+.messages-thread-empty h3,.messages-no-active h2{font-size:20px!important}
+.messages-thread-empty p,.messages-no-active p{font-size:14px!important;line-height:1.45}
+.messages-compose{padding:11px;grid-template-columns:auto minmax(0,1fr) 48px!important;gap:9px}
+.messages-compose textarea{min-height:48px;font-size:16px!important;line-height:1.4!important;padding:12px 13px;border-radius:11px}
+.messages-attach-btn{width:48px!important;height:48px!important;border-radius:11px!important}
+.messages-compose>button:last-child{min-width:48px;min-height:48px;border-radius:11px}
+
+/* ---------- Copilot ---------- */
+.copilot-panel,
+.copilot-panel textarea,
+.copilot-panel button,
+.copilot-panel a,
+.copilot-launcher{
+  font-family:var(--fs-chat-font)!important;
+}
+.copilot-panel{width:min(500px,calc(100vw - 28px));height:min(735px,calc(100dvh - 112px))}
+.copilot-head{min-height:80px;padding:12px 14px;grid-template-columns:48px 1fr 38px 38px;gap:9px}
+.copilot-avatar{width:48px;height:48px}
+.copilot-head>div:nth-child(2)>span{font-size:11px;line-height:1.15;letter-spacing:1.25px}
+.copilot-head strong{font-size:21px;line-height:1.15;letter-spacing:.15px;margin:2px 0 4px}
+.copilot-head small{font-size:12px;line-height:1.25;color:#aab0b8;font-weight:700}
+.copilot-context-bar{min-height:44px;padding:8px 15px;font-size:13px;line-height:1.45;color:#c3c8cf}
+.copilot-context-bar b{font-weight:700}
+.copilot-messages{padding:17px 14px 22px}
+.copilot-message{margin-bottom:14px}
+.copilot-bubble{max-width:94%;padding:14px 15px;border-radius:16px}
+.copilot-bubble p{font-size:16px;line-height:1.55;font-weight:400;letter-spacing:0;color:#f2f3f5}
+.copilot-mini-label{font-size:11px;line-height:1.2;letter-spacing:1px;margin-bottom:8px}
+.copilot-follow{font-size:14px;line-height:1.5;margin-top:11px;padding-top:11px}
+.copilot-actions{gap:9px;margin-top:10px}
+.copilot-actions a{min-height:42px;padding:8px 13px;font-size:13px;line-height:1.3;letter-spacing:0}
+.copilot-quick{padding:12px 13px;gap:9px}
+.copilot-quick button{min-height:40px;padding:9px 13px;font-size:13px;line-height:1.25;font-weight:700}
+.copilot-input{grid-template-columns:1fr 50px;padding:11px;gap:9px}
+.copilot-input>div{min-height:52px;padding:0 12px;border-radius:13px}
+.copilot-input textarea{font-size:16px;line-height:1.45;padding:13px 0;max-height:112px}
+.copilot-input>button{border-radius:13px}
+.copilot-foot{min-height:40px;padding:8px 15px;font-size:11px;line-height:1.4;color:#969da6}
+.copilot-thinking small{font-size:13px;color:#b9bec5}
+.copilot-error{font-size:13px;line-height:1.5}
+.copilot-car-body>strong{font-size:14px;line-height:1.4}
+.copilot-car-body>b{font-size:18px}
+.copilot-car-meta{font-size:11px;line-height:1.3}
+.copilot-car-body>small,.copilot-car-body>em{font-size:11px;line-height:1.3}
+
+@media(max-width:700px){
+  .mini-chat-window{left:8px;right:8px;width:auto;height:min(680px,calc(100dvh - 105px))}
+  .mini-chat-brand b{font-size:19px}
+  .mini-chat-tabs button{font-size:12px}
+  .mini-conv-copy b{font-size:15px}
+  .mini-message-bubble>p{font-size:15px!important}
+  .mini-chat-compose textarea{font-size:16px!important}
+  .copilot-panel{left:8px;right:8px;width:auto;height:min(78dvh,700px)}
+  .copilot-head strong{font-size:20px}
+  .copilot-context-bar{font-size:12px}
+  .copilot-bubble p{font-size:15px}
+  .copilot-quick button{font-size:12px}
+  .copilot-input textarea{font-size:16px}
+}
