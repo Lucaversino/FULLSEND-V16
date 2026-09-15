@@ -27,7 +27,7 @@ export default function Composer({initial,vehicleId,onDone,onClose}:{initial?:Co
   uploadLock.current=true;setUploading(true);setError('')
   try{
    for(const file of Array.from(files)){
-    if(!(MIME as readonly string[]).includes(file.type)||file.size>20*1024*1024)throw new Error('Envie JPG, PNG, WebP, MP4 ou WebM de até 20 MB por arquivo.')
+    if(!(MIME as readonly string[]).includes(file.type)||file.size>250*1024*1024)throw new Error('Envie JPG, PNG, WebP, MP4 ou WebM de até 250 MB por arquivo.')
     const bytes=new Uint8Array(await file.slice(0,16).arrayBuffer()),ascii=(a:number,b:number)=>String.fromCharCode(...bytes.slice(a,b))
     const valid=file.type==='image/jpeg'?bytes[0]===255&&bytes[1]===216&&bytes[2]===255:file.type==='image/png'?bytes[0]===137&&ascii(1,4)==='PNG':file.type==='image/webp'?ascii(0,4)==='RIFF'&&ascii(8,12)==='WEBP':file.type==='video/mp4'?ascii(4,8)==='ftyp':bytes[0]===26&&bytes[1]===69&&bytes[2]===223&&bytes[3]===163
     if(!valid)throw new Error('O conteúdo do arquivo não corresponde ao formato informado.')
@@ -56,7 +56,7 @@ export default function Composer({initial,vehicleId,onDone,onClose}:{initial?:Co
    {error&&<p className="cm-error" role="alert">{error}</p>}
    {uploading&&<p role="status" className="cm-muted">Enviando anexos… Aguarde para publicar.</p>}
    <div className="cm-simple-footer"><button type="button" disabled={busy||uploading||media.length>=10} onClick={()=>fileInput.current?.click()}>＋ Fotos / vídeos{media.length?` (${media.length}/10)`:''}</button><button className="cm-primary" disabled={busy||uploading||!content.trim()}>{busy?'Publicando…':initial?'Salvar':'Publicar'}</button></div>
-   <small className="cm-simple-help">Até 10 fotos ou vídeos · 20 MB por arquivo</small>
+   <small className="cm-simple-help">Até 10 fotos ou vídeos · 250 MB por arquivo</small>
   </form>
  </section>
 }
