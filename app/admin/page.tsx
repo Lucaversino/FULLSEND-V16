@@ -80,7 +80,7 @@ export default async function AdminPage() {
 
     const [profilesRes, authUsersRes, ownRes, geckoRes, logsRes, importJobsRes, importLogsRes] = await Promise.all([
       admin.from('profiles')
-        .select('id,name,city,state,whatsapp,avatar_url,badge,role,account_status,last_admin_note,created_at,xp_points,reputation_level')
+        .select('id,name,city,state,whatsapp,avatar_url,badge,role,account_status,last_admin_note,created_at,xp_points,reputation_level,is_verified,verified_paid,verified_override')
         .order('created_at', { ascending: false }),
 
       admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),

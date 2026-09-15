@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { syncVerifiedPayment } from '@/lib/verified-payments'
 import { syncPromotionPayment } from '@/lib/promotion-payments'
 
 export const dynamic='force-dynamic'
@@ -144,7 +145,7 @@ export async function POST(req:NextRequest){
       }
     }else if(type==='payment'){
       const payment=await mercadoPagoGet(`/v1/payments/${encodeURIComponent(dataId)}`)
-      await syncPromotionPayment(payment)
+      if(!await syncVerifiedPayment(payment))await syncPromotionPayment(payment)
     }
     return NextResponse.json({ok:true})
   }catch(error){

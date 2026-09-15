@@ -2,22 +2,25 @@
 
 import { useState } from 'react'
 import { Edit3, MapPin, MessageCircle, Instagram, Mail, X } from 'lucide-react'
+import VerifiedBadge from '@/components/VerifiedBadge'
+import VerifiedPurchase from '@/components/VerifiedPurchase'
 import ProfileEditor from '@/components/ProfileEditor'
 import UserBadge from '@/components/UserBadge'
 import ReputationBadge from '@/components/ReputationBadge'
 
 export default function ProfileOverview({profile,email,isVip:_isVip}:{profile:any;email?:string|null;isVip:boolean}){
   const [editing,setEditing]=useState(false)
-  return <section className="user-profile-card">
+  return <><section className="user-profile-card">
     <div className="user-profile-main">
       <div className="user-avatar-wrap">
         <div className="user-avatar">
           {profile?.avatar_url?<img src={profile.avatar_url} alt="Foto de perfil"/>:<span>{String(profile?.name||'F').slice(0,1).toUpperCase()}</span>}
         </div>
+        <UserBadge badge={profile?.badge}/>
       </div>
       <div className="user-profile-copy">
         <span className="user-overline">PERFIL FULLSEND</span>
-        <div className="profile-name-with-badge"><h2>{profile?.name||'Membro FULLSEND'}</h2><UserBadge badge={profile?.badge}/><ReputationBadge level={profile?.reputation_level||'ROOKIE'} xp={profile?.xp_points}/></div>
+        <div className="profile-name-with-badge"><h2>{profile?.name||'Membro FULLSEND'}</h2><VerifiedBadge active={profile?.is_verified}/><ReputationBadge level={profile?.reputation_level||'ROOKIE'} xp={profile?.xp_points}/></div>
         <p>{profile?.bio||'Sua garagem, seus projetos e sua identidade automotiva.'}</p>
       </div>
       <button className="user-edit-profile-btn" onClick={()=>setEditing(true)}><Edit3 size={15}/> EDITAR PERFIL</button>
@@ -36,5 +39,5 @@ export default function ProfileOverview({profile,email,isVip:_isVip}:{profile:an
         <ProfileEditor profile={profile} email={email}/>
       </div>
     </div>:null}
-  </section>
+  </section><VerifiedPurchase active={!!profile?.is_verified} blocked={profile?.verified_override===false}/></>
 }
