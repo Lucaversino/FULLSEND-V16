@@ -11,6 +11,12 @@ type Pending={path:string;name:string;size:number;type:string}
 
 export default function MiniMessagesWidget({currentUserId,initialUnread=0}:{currentUserId:string;initialUnread?:number}){
   const [open,setOpen]=useState(false)
+  useEffect(()=>{
+    const closeOther=(e:Event)=>{if(window.matchMedia('(max-width:820px)').matches&&(e as CustomEvent).detail!=='messages')setOpen(false)}
+    window.addEventListener('fullsend-mobile-panel',closeOther)
+    return ()=>window.removeEventListener('fullsend-mobile-panel',closeOther)
+  },[])
+  useEffect(()=>{if(open)window.dispatchEvent(new CustomEvent('fullsend-mobile-panel',{detail:'messages'}))},[open])
   const [tab,setTab]=useState<'conversations'|'contacts'>('conversations')
   const [conversations,setConversations]=useState<Conv[]>([])
   const [contacts,setContacts]=useState<Person[]>([])

@@ -66,6 +66,7 @@ function visiblePages(current:number,total:number) {
 function FilterFields({ p, base }:{ p:Record<string,string|undefined>, base:string }) {
   return <>
     {p.q ? <input type="hidden" name="q" value={p.q}/> : null}
+    {p.estilo ? <input type="hidden" name="estilo" value={p.estilo}/> : null}
     {p.categoria ? <input type="hidden" name="categoria" value={p.categoria}/> : null}
 
     <div className="filter-group filter-style-visual">
@@ -155,6 +156,7 @@ function FilterSidebar({ p }:{ p:Record<string,string|undefined> }) {
     <Link href="/eventos" className="filters-events-button" aria-label="Abrir agenda de eventos automotivos">
       <img src="/fullsend-eventos-button-v2.png" alt="Eventos automotivos FULLSEND"/>
     </Link>
+    <div className="mobile-style-shortcuts"><StyleBannerButtons params={p} base="/" compact /></div>
     <div className="filters-card desktop-filters">
       <div className="filters-title"><Filter size={17}/><div><strong>FILTROS</strong><span>Refine sua busca</span></div></div>
       <form method="GET" action="/"><FilterFields p={p} base="/"/></form>

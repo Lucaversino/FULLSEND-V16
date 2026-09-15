@@ -84,6 +84,12 @@ export default function FullsendCopilot(){
   const pathname=usePathname()||'/'
   const pageName=getPageName(pathname)
   const [open,setOpen]=useState(false)
+  useEffect(()=>{
+    const closeOther=(e:Event)=>{if(window.matchMedia('(max-width:820px)').matches&&(e as CustomEvent).detail!=='copilot')setOpen(false)}
+    window.addEventListener('fullsend-mobile-panel',closeOther)
+    return ()=>window.removeEventListener('fullsend-mobile-panel',closeOther)
+  },[])
+  useEffect(()=>{if(open)window.dispatchEvent(new CustomEvent('fullsend-mobile-panel',{detail:'copilot'}))},[open])
   const [messages,setMessages]=useState<Message[]>([START])
   const [input,setInput]=useState('')
   const [busy,setBusy]=useState(false)

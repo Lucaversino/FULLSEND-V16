@@ -1,4 +1,5 @@
 import './globals.css'
+import './mobile-polish.css'
 import type { Metadata, Viewport } from 'next'
 import Header from '@/components/Header'
 import PWARegister from '@/components/pwa/PWARegister'
