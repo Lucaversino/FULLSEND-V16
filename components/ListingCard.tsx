@@ -8,6 +8,7 @@ import UserBadge from '@/components/UserBadge'
 import ReputationBadge from '@/components/ReputationBadge'
 import DirectMessageButton from '@/components/DirectMessageButton'
 import FollowUserButton from '@/components/FollowUserButton'
+import VerifiedAvatarBadge from '@/components/VerifiedAvatarBadge'
 
 function money(value: number | null) {
   if (value == null || !Number.isFinite(value)) return 'Consulte'
@@ -148,7 +149,7 @@ export default function ListingCard({ x }: { x: UnifiedListing }) {
             {x.mileage != null ? <span><Gauge size={14}/>{x.mileage.toLocaleString('pt-BR')} km</span> : null}
           </div>
           <div className="listing-location"><MapPin size={15}/>{x.city || 'Brasil'}{x.state ? ` / ${x.state}` : ''}</div>
-          {x.seller?.name?<div className="listing-seller-mini"><span>{x.seller.avatar_url?<img src={x.seller.avatar_url} alt=""/>:<b>{x.seller.name[0]?.toUpperCase()}</b>}</span><em>{x.seller.name}</em><UserBadge badge={x.seller.badge} compact/><ReputationBadge level={x.seller.reputation_level||'ROOKIE'} xp={x.seller.xp_points} compact/></div>:null}
+          {x.seller?.name?<div className="listing-seller-mini"><span className="verified-avatar-wrap"><span>{x.seller.avatar_url?<img src={x.seller.avatar_url} alt=""/>:<b>{x.seller.name[0]?.toUpperCase()}</b>}</span><VerifiedAvatarBadge active={!!x.seller.is_verified}/></span><em>{x.seller.name}</em><UserBadge badge={x.seller.badge} compact/><ReputationBadge level={x.seller.reputation_level||'ROOKIE'} xp={x.seller.xp_points} compact/></div>:null}
           <div className="listing-cta">VER RÁPIDO <ArrowRight size={15}/></div>
         </div>
       </button>
@@ -172,7 +173,7 @@ export default function ListingCard({ x }: { x: UnifiedListing }) {
             <div className="quick-modal-content">
               <div className="quick-modal-topline"><span className={`source-badge ${external ? 'partner' : 'native'} quick-source`}>{x.sourceLabel}</span>{x.isVip?<span className="listing-promo-badge vip static"><Crown size={12}/>VIP</span>:x.isFeatured?<span className="listing-promo-badge featured static"><Sparkles size={12}/>DESTAQUE</span>:null}</div>
               {x.seller?.name?<div className="quick-seller">
-                <span className="quick-seller-avatar">{x.seller.avatar_url?<img src={x.seller.avatar_url} alt=""/>:<b>{x.seller.name[0]?.toUpperCase()}</b>}</span>
+                <span className="verified-avatar-wrap"><span className="quick-seller-avatar">{x.seller.avatar_url?<img src={x.seller.avatar_url} alt=""/>:<b>{x.seller.name[0]?.toUpperCase()}</b>}</span><VerifiedAvatarBadge active={!!x.seller.is_verified}/></span>
                 <div className="quick-seller-copy"><small>ANUNCIANTE</small><strong>{x.seller.name}</strong></div>
                 <UserBadge badge={x.seller.badge}/>
                 {x.seller.id?<FollowUserButton userId={x.seller.id} compact/>:null}

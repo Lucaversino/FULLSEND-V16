@@ -26,7 +26,7 @@ export async function GET(){
     const convIds=convs.map((c:any)=>c.id)
 
     const [{data:profiles},{data:listings},{data:lastMessages},{data:unreads},{data:follows}]=await Promise.all([
-      otherIds.length?admin.from('profiles').select('id,name,avatar_url,badge,city,state').in('id',otherIds):Promise.resolve({data:[] as any[]}),
+      otherIds.length?admin.from('profiles').select('id,name,avatar_url,badge,city,state,is_verified').in('id',otherIds):Promise.resolve({data:[] as any[]}),
       listingIds.length?admin.from('listings').select('id,title,slug,cover_url').in('id',listingIds):Promise.resolve({data:[] as any[]}),
       convIds.length?admin.from('messages').select('id,conversation_id,sender_id,body,attachments,read_at,created_at').in('conversation_id',convIds).order('created_at',{ascending:false}):Promise.resolve({data:[] as any[]}),
       convIds.length?admin.from('messages').select('id,conversation_id,sender_id,read_at').in('conversation_id',convIds).neq('sender_id',user.id).is('read_at',null):Promise.resolve({data:[] as any[]}),
@@ -35,7 +35,7 @@ export async function GET(){
 
     const followedIds=(follows||[]).map((x:any)=>x.followed_id)
     const {data:contactProfiles}=followedIds.length
-      ? await admin.from('profiles').select('id,name,avatar_url,badge,city,state').in('id',followedIds)
+      ? await admin.from('profiles').select('id,name,avatar_url,badge,city,state,is_verified').in('id',followedIds)
       : {data:[] as any[]}
 
     const profileMap=new Map((profiles||[]).map((x:any)=>[x.id,x]))

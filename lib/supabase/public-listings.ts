@@ -45,7 +45,7 @@ type RpcItem = {
   is_featured: boolean
   is_vip: boolean
   created_at: string | null
-  seller?: { id?: string | null; name?: string | null; avatar_url?: string | null; badge?: string | null; xp_points?: number | null; reputation_level?: string | null } | null
+  seller?: { id?: string | null; name?: string | null; avatar_url?: string | null; badge?: string | null; xp_points?: number | null; reputation_level?: string | null; is_verified?: boolean | null } | null
 }
 
 function toUnified(row: RpcItem): UnifiedListing {
@@ -117,7 +117,13 @@ export async function fetchPublicListingsPage(params: PublicSearchParams): Promi
   }
 
   const payload = (data || {}) as any
-  const items = Array.isArray(payload.items) ? payload.items : []
+  const items = (Array.isArray(payload.items) ? payload.items : []) as RpcItem[]
+  const sellerIds=[...new Set(items.map(row=>row.seller?.id).filter(Boolean))] as string[]
+  if(sellerIds.length){
+    const {data:verified}=await supabase.from('profiles').select('id,is_verified').in('id',sellerIds)
+    const verifiedMap=new Map((verified||[]).map((x:any)=>[x.id,!!x.is_verified]))
+    for(const row of items)if(row.seller?.id)row.seller.is_verified=verifiedMap.get(row.seller.id)||false
+  }
   return {
     data: items.map((row: RpcItem) => toUnified(row)),
     total: Number(payload.total || 0),

@@ -13,7 +13,7 @@ export async function GET(req:Request){try{
  if(q.get('mode')==='users'){
   const term=(q.get('q')||'').trim().slice(0,100).replace(/[\\%_]/g,'')
   const pageSize=5
-  let query=s.from('profiles').select('id,name,avatar_url,city,state').eq('account_status','active')
+  let query=s.from('profiles').select('id,name,avatar_url,city,state,is_verified').eq('account_status','active')
   // Sugestões iniciais usam membros reais recentes; a pesquisa inclui a própria conta.
   if(term)query=query.ilike('name',`%${term}%`)
   else if(user)query=query.neq('id',user.id)
@@ -21,7 +21,7 @@ export async function GET(req:Request){try{
   return NextResponse.json({items:(data||[]).slice(0,pageSize),hasMore:(data||[]).length>pageSize},{headers:{'Cache-Control':'private, no-store'}})
  }
  if(q.get('mode')==='comments'){
-  const post=uuid.parse(q.get('post'));const {data}=checked(await s.from('community_comments').select('id,content,user_id,created_at,author:profiles!user_id(id,name,avatar_url)').eq('post_id',post).eq('status','published').order('created_at').order('id').range((page-1)*20,page*20))
+  const post=uuid.parse(q.get('post'));const {data}=checked(await s.from('community_comments').select('id,content,user_id,created_at,author:profiles!user_id(id,name,avatar_url,is_verified)').eq('post_id',post).eq('status','published').order('created_at').order('id').range((page-1)*20,page*20))
   return NextResponse.json({items:(data||[]).slice(0,20),hasMore:(data||[]).length>20})
  }
  if(q.get('mode')==='options'){
@@ -40,10 +40,15 @@ export async function GET(req:Request){try{
  let people:any[]=[],cars:any[]=[]
  if(args.p_query&&page===1){
   const term=args.p_query.replace(/[%_]/g,'')
-  const [p,v]=await Promise.all([s.from('profiles').select('id,name,avatar_url,city,state').ilike('name',`%${term}%`).limit(10),s.from('listings').select('id,title,cover_url').eq('status','active').eq('listing_mode','garage').ilike('title',`%${term}%`).limit(10)])
+  const [p,v]=await Promise.all([s.from('profiles').select('id,name,avatar_url,city,state,is_verified').ilike('name',`%${term}%`).limit(10),s.from('listings').select('id,title,cover_url').eq('status','active').eq('listing_mode','garage').ilike('title',`%${term}%`).limit(10)])
   people=checked(p).data||[];cars=checked(v).data||[]
  }
- return NextResponse.json({...data,items:await signedMedia(s,data?.items||[]),people,cars,viewer:user?.id||null,isAdmin:profile?.role==='admin',city:profile?.city||'',state:profile?.state||''})
+ const signed=await signedMedia(s,data?.items||[])
+ const authorIds=[...new Set((signed||[]).map((x:any)=>x.user_id).filter(Boolean))]
+ const verifiedMap=new Map<string,boolean>()
+ if(authorIds.length){const {data:vp}=await s.from('profiles').select('id,is_verified').in('id',authorIds);for(const x of vp||[])verifiedMap.set(x.id,!!x.is_verified)}
+ const items=(signed||[]).map((x:any)=>({...x,author:{...(x.author||{}),is_verified:verifiedMap.get(x.user_id)||!!x.author?.is_verified}}))
+ return NextResponse.json({...data,items,people,cars,viewer:user?.id||null,isAdmin:profile?.role==='admin',city:profile?.city||'',state:profile?.state||''})
 }catch(e){return failure(e)}}
 export async function POST(req:Request){try{
  origin(req);const {s,user}=await context(true);const b=await req.json()

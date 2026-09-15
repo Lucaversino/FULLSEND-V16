@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { MessageSquareText, X, Search, Send, Paperclip, Loader2, Users, MessagesSquare, ArrowLeft } from 'lucide-react'
 import MessageAttachments, { ChatAttachment } from '@/components/MessageAttachments'
+import VerifiedAvatarBadge from '@/components/VerifiedAvatarBadge'
 
-type Person={id:string;name:string;avatar_url?:string|null;badge?:string|null;city?:string|null;state?:string|null}
+type Person={id:string;name:string;avatar_url?:string|null;badge?:string|null;city?:string|null;state?:string|null;is_verified?:boolean}
 type Conv={id:string;other:Person;listing?:{id:string;title:string;slug:string;cover_url?:string|null}|null;lastMessage?:{body:string;preview?:string;created_at:string;attachments?:ChatAttachment[]}|null;unread:number;last_message_at:string}
 type Msg={id:string;conversation_id:string;sender_id:string;body:string;attachments?:ChatAttachment[];created_at:string}
 type Pending={path:string;name:string;size:number;type:string}
@@ -121,7 +122,7 @@ export default function MiniMessagesWidget({currentUserId,initialUnread=0}:{curr
 
       {active?<div className="mini-chat-active-head">
         <button type="button" onClick={()=>{setActiveId('');setMessages([])}}><ArrowLeft size={17}/></button>
-        <div className="mini-person-avatar">{active.other.avatar_url?<img src={active.other.avatar_url} alt=""/>:<span>{(active.other.name||'U')[0]}</span>}</div>
+        <span className="verified-avatar-wrap"><div className="mini-person-avatar">{active.other.avatar_url?<img src={active.other.avatar_url} alt=""/>:<span>{(active.other.name||'U')[0]}</span>}</div><VerifiedAvatarBadge active={active.other.is_verified}/></span>
         <div><b>{active.other.name}</b><small>{active.listing?.title||'Conversa direta'}</small></div>
       </div>:<>
         <div className="mini-chat-tabs">
@@ -135,14 +136,14 @@ export default function MiniMessagesWidget({currentUserId,initialUnread=0}:{curr
         {loading&&!active?<div className="mini-chat-loading"><Loader2 className="vip-spin" size={22}/>Carregando...</div>:null}
         {!active&&tab==='conversations'&&!loading?(filteredConvs.length?filteredConvs.map(c=>
           <button key={c.id} className="mini-conv-row" onClick={()=>chooseConversation(c.id)}>
-            <div className="mini-person-avatar">{c.other.avatar_url?<img src={c.other.avatar_url} alt=""/>:<span>{(c.other.name||'U')[0]}</span>}</div>
+            <span className="verified-avatar-wrap"><div className="mini-person-avatar">{c.other.avatar_url?<img src={c.other.avatar_url} alt=""/>:<span>{(c.other.name||'U')[0]}</span>}</div><VerifiedAvatarBadge active={c.other.is_verified}/></span>
             <div className="mini-conv-copy"><div><b>{c.other.name}</b>{c.unread?<em>{c.unread}</em>:null}</div><small>{c.listing?.title||'Conversa direta'}</small><p>{c.lastMessage?.preview||c.lastMessage?.body||'Conversa iniciada'}</p></div>
           </button>
         ):<div className="mini-chat-empty"><MessagesSquare size={28}/><b>NENHUMA CONVERSA</b><p>Seus chats aparecerão aqui.</p></div>):null}
 
         {!active&&tab==='contacts'&&!loading?(filteredContacts.length?filteredContacts.map(person=>
           <button key={person.id} className="mini-conv-row contact" onClick={()=>startContact(person)} disabled={busy}>
-            <div className="mini-person-avatar">{person.avatar_url?<img src={person.avatar_url} alt=""/>:<span>{(person.name||'U')[0]}</span>}</div>
+            <span className="verified-avatar-wrap"><div className="mini-person-avatar">{person.avatar_url?<img src={person.avatar_url} alt=""/>:<span>{(person.name||'U')[0]}</span>}</div><VerifiedAvatarBadge active={person.is_verified}/></span>
             <div className="mini-conv-copy"><div><b>{person.name||'Usuário FULLSEND'}</b></div><small>{person.city?`${person.city}${person.state?` / ${person.state}`:''}`:'Contato salvo'}</small><p>Iniciar conversa</p></div>
           </button>
         ):<div className="mini-chat-empty"><Users size={28}/><b>NENHUM CONTATO SALVO</b><p>Use SEGUIR nos anunciantes para salvar contatos.</p></div>):null}

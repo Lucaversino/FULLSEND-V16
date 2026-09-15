@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight, MapPin, Plus } from 'lucide-react'
 import { formatEventDate } from '@/lib/events-shared'
 
@@ -20,12 +20,34 @@ export default function HomeEventsCarousel({
   events,
   compact=false,
   title='EVENTOS AUTOMOTIVOS',
+  randomize=false,
+  autoplay=false,
 }:{
   events:HomeEvent[]
   compact?:boolean
   title?:string
+  randomize?:boolean
+  autoplay?:boolean
 }){
   const ref=useRef<HTMLDivElement|null>(null)
+  const [shuffled,setShuffled]=useState<HomeEvent[]>(events)
+  useEffect(()=>{
+    if(!randomize){setShuffled(events);return}
+    const copy=[...events]
+    for(let i=copy.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[copy[i],copy[j]]=[copy[j],copy[i]]}
+    setShuffled(copy)
+  },[events,randomize])
+  const displayEvents=useMemo(()=>shuffled,[shuffled])
+  useEffect(()=>{
+    if(!autoplay||displayEvents.length<2)return
+    const timer=window.setInterval(()=>{
+      const node=ref.current;if(!node)return
+      const first=node.querySelector<HTMLElement>('.home-event-card');const step=(first?.offsetWidth||260)+14
+      if(node.scrollLeft+node.clientWidth>=node.scrollWidth-step){node.scrollTo({left:0,behavior:'smooth'})}
+      else node.scrollBy({left:step,behavior:'smooth'})
+    },3800)
+    return()=>window.clearInterval(timer)
+  },[autoplay,displayEvents.length])
   if(!events.length)return null
 
   function move(direction:number){
@@ -49,7 +71,7 @@ export default function HomeEventsCarousel({
     </div>
 
     <div className="home-events-track" ref={ref}>
-      {events.map(event=><Link href={`/eventos/${event.slug}`} className="home-event-card" key={event.id}>
+      {displayEvents.map(event=><Link href={`/eventos/${event.slug}`} className="home-event-card" key={event.id}>
         <div className="home-event-media">
           {event.image_url?<img src={event.image_url} alt={event.title}/>:<div className="home-event-no-image">FULLSEND<br/>EVENTOS</div>}
           <span>{event.category}</span>

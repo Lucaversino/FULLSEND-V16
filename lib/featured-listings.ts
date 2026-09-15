@@ -28,7 +28,7 @@ export async function fetchFeaturedListings(client:SupabaseClient,filters:Featur
  const [own,gecko]=await Promise.all([collect('listings',ownFields),collect('gecko_listings',geckoFields)])
  const ids=Array.from(new Set(own.map(x=>x.user_id).filter(Boolean)));const sellers=new Map<string,any>()
  for(let offset=0;offset<ids.length;offset+=100){
-  const {data,error}=await client.from('profiles').select('id,name,avatar_url,badge,xp_points,reputation_level').in('id',ids.slice(offset,offset+100))
+  const {data,error}=await client.from('profiles').select('id,name,avatar_url,badge,xp_points,reputation_level,is_verified').in('id',ids.slice(offset,offset+100))
   if(error)console.warn('Featured seller metadata unavailable:',error.code)
   for(const seller of data||[])sellers.set(seller.id,seller)
  }
