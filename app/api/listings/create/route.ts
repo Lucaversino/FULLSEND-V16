@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { z } from 'zod'
 
 const CATEGORIES=new Set(['carros','motores','rodas','suspensao','som','acessorios'])
 const STYLES=new Set(['rebaixado','turbo','antigo'])
@@ -16,6 +17,19 @@ export async function POST(req:Request){
 
   const body=await req.json().catch(()=>null)
   if(!body)return NextResponse.json({error:'Dados inválidos.'},{status:400})
+  const garageId=body.garage_vehicle_id ? z.string().uuid().safeParse(body.garage_vehicle_id) : null
+  if(garageId&&!garageId.success)return NextResponse.json({error:'Carro da garagem inválido.'},{status:400})
+  if(garageId?.success){
+    const {data:profile,error:profileError}=await session.from('profiles').select('account_status').eq('id',user.id).maybeSingle()
+    if(profileError)return NextResponse.json({error:'Não foi possível verificar seu perfil.'},{status:503})
+    if(profile?.account_status!=='active')return NextResponse.json({error:'Sua conta não está habilitada para anunciar.'},{status:403})
+    const {data:garage,error}=await session.from('listings').select('id').eq('id',garageId.data).eq('user_id',user.id).eq('listing_mode','garage').eq('category_slug','carros').maybeSingle()
+    if(error)return NextResponse.json({error:'Não foi possível consultar sua garagem.'},{status:503})
+    if(!garage||body.category_slug!=='carros')return NextResponse.json({error:'Selecione um carro da sua própria garagem.'},{status:403})
+    const {data:existing,error:linkError}=await session.from('listings').select('id,slug').eq('source_garage_id',garageId.data).eq('user_id',user.id).neq('status','sold').maybeSingle()
+    if(linkError)return NextResponse.json({error:'Aplique o SQL 029 para habilitar a venda pela garagem.'},{status:503})
+    if(existing)return NextResponse.json({success:true,existing:true,listing:existing})
+  }
 
   const title=text(body.title,120)
   const description=text(body.description,5000)
@@ -41,6 +55,7 @@ export async function POST(req:Request){
 
   const slugBase=text(body.slug,180)||`${title}-${Date.now()}`
   const payload={
+    ...(garageId?.success?{source_garage_id:garageId.data}:{}),
     user_id:user.id,
     title,
     slug:slugBase,
@@ -77,7 +92,37 @@ export async function POST(req:Request){
   // O endpoint usa a Service Role somente no servidor, depois de validar a sessão.
   // Isso evita falhas de GRANT/RLS no navegador sem permitir publicar em nome de outro usuário.
   const admin=createAdminClient()
+  // Cópias independentes: remover uma foto do anúncio nunca apaga a da garagem.
+  const copiedPaths:string[]=[]
+  if(garageId?.success){
+    const {data:garage}=await session.from('listings').select('cover_url,media').eq('id',garageId.data).eq('user_id',user.id).single()
+    const originalUrls=new Set([garage?.cover_url,...(Array.isArray(garage?.media)?garage.media.map((x:any)=>typeof x==='string'?x:x?.url):[])])
+    const bucket=admin.storage.from('listing-media')
+    const publicBase=bucket.getPublicUrl('').data.publicUrl
+    try{
+      for(let i=0;i<media.length;i++){
+        if(!originalUrls.has(media[i]))continue
+        if(!media[i].startsWith(publicBase))throw new Error('Adicione novamente as fotos externas para publicar este anúncio.')
+        const source=decodeURIComponent(media[i].slice(publicBase.length).split('?')[0])
+        const extension=source.split('.').pop()?.replace(/[^a-zA-Z0-9]/g,'')||'jpg'
+        const destination=`${user.id}/sale-${crypto.randomUUID()}.${extension}`
+        const {error:copyError}=await bucket.copy(source,destination)
+        if(copyError)throw new Error('Não foi possível preparar as fotos. Tente novamente.')
+        copiedPaths.push(destination)
+        media[i]=bucket.getPublicUrl(destination).data.publicUrl
+      }
+      payload.cover_url=media[0]||null
+    }catch(e){
+      if(copiedPaths.length)await bucket.remove(copiedPaths)
+      return NextResponse.json({error:e instanceof Error?e.message:'Não foi possível preparar as fotos.'},{status:503})
+    }
+  }
   const {data,error}=await admin.from('listings').insert(payload).select('id,slug').single()
+  if(error&&copiedPaths.length)await admin.storage.from('listing-media').remove(copiedPaths)
+  if(error?.code==='23505'&&garageId?.success){
+    const {data:existing}=await session.from('listings').select('id,slug').eq('source_garage_id',garageId.data).eq('user_id',user.id).neq('status','sold').maybeSingle()
+    if(existing)return NextResponse.json({success:true,existing:true,listing:existing})
+  }
   if(error)return NextResponse.json({error:error.message},{status:400})
   return NextResponse.json({success:true,listing:data})
 }

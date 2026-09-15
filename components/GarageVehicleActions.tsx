@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Edit3, Trash2, Save, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import SellGarageVehicle from './SellGarageVehicle'
 
 export default function GarageVehicleActions({vehicle}:{vehicle:any}){
   const [editing,setEditing]=useState(false)
@@ -55,6 +56,7 @@ export default function GarageVehicleActions({vehicle}:{vehicle:any}){
   }
 
   return <>
+    <SellGarageVehicle vehicleId={vehicle.id}/>
     <div className="garage-project-actions">
       <button type="button" onClick={()=>setEditing(true)}><Edit3 size={14}/> EDITAR</button>
       <button type="button" className="danger" onClick={remove} disabled={busy}><Trash2 size={14}/> EXCLUIR</button>

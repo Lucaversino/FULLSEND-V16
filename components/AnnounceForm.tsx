@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import VehicleBrandModelFields from '@/components/VehicleBrandModelFields'
@@ -35,16 +35,20 @@ function cleanNumber(v:FormDataEntryValue|null){
   return Number.isFinite(n)?n:null
 }
 
-export default function AnnounceForm({defaults}:{defaults?:{city?:string;state?:string;whatsapp?:string}}){
+export default function AnnounceForm({defaults,garageVehicle,onPublished,onBusyChange}:{defaults?:{city?:string;state?:string;whatsapp?:string};garageVehicle?:any;onPublished?:(listing:{id:string;slug:string})=>void;onBusyChange?:(busy:boolean)=>void}){
   const [msg,setMsg]=useState('')
   const [busy,setBusy]=useState(false)
   const [category,setCategory]=useState('carros')
-  const [styles,setStyles]=useState<string[]>([])
+  const [styles,setStyles]=useState<string[]>(garageVehicle?.vehicle_styles||[])
   const [files,setFiles]=useState<File[]>([])
+  const [existingMedia,setExistingMedia]=useState<string[]>(()=>Array.from(new Set<string>([garageVehicle?.cover_url,...(Array.isArray(garageVehicle?.media)?garageVehicle.media.map((x:any)=>typeof x==='string'?x:x?.url):[])].filter((x:any)=>typeof x==='string'&&/^https?:\/\//.test(x)))).slice(0,15))
+  useEffect(()=>{onBusyChange?.(busy)},[busy,onBusyChange])
   const inputRef=useRef<HTMLInputElement|null>(null)
   const router=useRouter()
 
   const previews=useMemo(()=>files.map(file=>({file,url:URL.createObjectURL(file)})),[files])
+
+  useEffect(()=>()=>{previews.forEach(x=>URL.revokeObjectURL(x.url))},[previews])
 
   function toggleStyle(value:string){
     setStyles(current=>current.includes(value)?current.filter(x=>x!==value):[...current,value])
@@ -53,7 +57,7 @@ export default function AnnounceForm({defaults}:{defaults?:{city?:string;state?:
   function selectFiles(list:FileList|null){
     if(!list)return
     const valid=Array.from(list).filter(f=>f.size>0&&f.size<=20*1024*1024)
-    setFiles(current=>[...current,...valid].slice(0,15))
+    setFiles(current=>[...current,...valid].slice(0,15-existingMedia.length))
     if(inputRef.current)inputRef.current.value=''
   }
 
@@ -109,8 +113,8 @@ export default function AnnounceForm({defaults}:{defaults?:{city?:string;state?:
       }
 
       setMsg('Enviando fotos e vídeos...')
-      const media:string[]=[]
-      for(const f of files.slice(0,15)){
+      const media:string[]=[...existingMedia]
+      for(const f of files.slice(0,15-existingMedia.length)){
         const safe=f.name.replace(/[^a-zA-Z0-9._-]/g,'_')
         const path=`${user.id}/${crypto.randomUUID()}-${safe}`
         const {error}=await supabase.storage.from('listing-media').upload(path,f,{upsert:false})
@@ -122,6 +126,7 @@ export default function AnnounceForm({defaults}:{defaults?:{city?:string;state?:
       const slug=`${title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}-${Date.now().toString().slice(-7)}`
 
       const payload={
+        ...(garageVehicle?{garage_vehicle_id:garageVehicle.id}:{}),
         user_id:user.id,
         title,
         slug,
@@ -163,6 +168,7 @@ export default function AnnounceForm({defaults}:{defaults?:{city?:string;state?:
       if(!response.ok)throw new Error(result.error||'Não foi possível publicar o anúncio.')
 
       setMsg('Anúncio publicado com sucesso.')
+      if(onPublished){onPublished(result.listing);return}
       router.push('/perfil')
       router.refresh()
     }catch(err){
@@ -172,7 +178,7 @@ export default function AnnounceForm({defaults}:{defaults?:{city?:string;state?:
     }
   }
 
-  return <form onSubmit={submit} className="announce-form announce-form-pro">
+  return <form onSubmit={submit} className="announce-form announce-form-pro"><fieldset disabled={busy} style={{border:0,padding:0,margin:0,minWidth:0,display:'grid',gap:18}}>
     <section className="announce-pro-section">
       <div className="announce-pro-head">
         <span>01</span>
@@ -181,8 +187,8 @@ export default function AnnounceForm({defaults}:{defaults?:{city?:string;state?:
 
       <label className="announce-pro-label">
         Categoria
-        <select name="category_slug" className="field" required value={category} onChange={e=>setCategory(e.target.value)}>
-          {CATEGORIES.map(([value,label])=><option value={value} key={value}>{label}</option>)}
+        <select aria-label="Categoria" name="category_slug" className="field" required value={category} onChange={e=>setCategory(e.target.value)}>
+          {(garageVehicle?CATEGORIES.filter(([v])=>v==='carros'):CATEGORIES).map(([value,label])=><option value={value} key={value}>{label}</option>)}
         </select>
       </label>
 
@@ -205,10 +211,10 @@ export default function AnnounceForm({defaults}:{defaults?:{city?:string;state?:
         <div><h3>INFORMAÇÕES PRINCIPAIS</h3><p>Crie um anúncio claro, completo e fácil de encontrar.</p></div>
       </div>
       <div className="announce-pro-grid two">
-        <label className="wide">Título do anúncio<input className="field" name="title" placeholder={category==='carros'?'Ex.: Volkswagen Golf GTI 2.0 TSI Stage 2':'Título do produto'} required maxLength={120}/></label>
+        <label className="wide">Título do anúncio<input className="field" name="title" defaultValue={garageVehicle?.title??''} placeholder={category==='carros'?'Ex.: Volkswagen Golf GTI 2.0 TSI Stage 2':'Título do produto'} required maxLength={120}/></label>
         <label><span><BadgeDollarSign size={14}/>Preço</span><input className="field" name="price" type="number" min="0" step="0.01" placeholder="Ex.: 135000" required/></label>
-        <label>Tags<input className="field" name="tags" placeholder="Ex.: FUELTECH, FORJADO, ARO 18"/></label>
-        <label className="wide">Descrição completa<textarea className="field" name="description" placeholder="Descreva estado, manutenção, documentação, preparação, peças instaladas, detalhes e diferenciais..." rows={6} maxLength={5000} required/></label>
+        <label>Tags<input className="field" name="tags" defaultValue={garageVehicle?.tags?.join(', ')||''} placeholder="Ex.: FUELTECH, FORJADO, ARO 18"/></label>
+        <label className="wide">Descrição completa<textarea className="field" name="description" defaultValue={garageVehicle?.description??''} placeholder="Descreva estado, manutenção, documentação, preparação, peças instaladas, detalhes e diferenciais..." rows={6} maxLength={5000} required/></label>
       </div>
     </section>
 
@@ -219,22 +225,22 @@ export default function AnnounceForm({defaults}:{defaults?:{city?:string;state?:
       </div>
 
       <div className="announce-pro-grid three">
-        <VehicleBrandModelFields/>
-        <label><span><CalendarDays size={14}/>Ano</span><input className="field" name="year" type="number" min="1900" max="2100" placeholder="2017" required/></label>
-        <label><span><Gauge size={14}/>Quilometragem</span><input className="field" name="mileage" type="number" min="0" step="1" placeholder="89000" required/></label>
-        <label><span><Fuel size={14}/>Combustível</span><select className="field" name="fuel" required><option value="">Selecione</option>{FUELS.map(x=><option key={x}>{x}</option>)}</select></label>
-        <label><span><Settings2 size={14}/>Câmbio</span><select className="field" name="transmission" required><option value="">Selecione</option>{TRANSMISSIONS.map(x=><option key={x}>{x}</option>)}</select></label>
-        <label><span><Palette size={14}/>Cor</span><input className="field" name="color" placeholder="Branco"/></label>
-        <label>Carroceria<select className="field" name="body_type"><option value="">Selecione</option>{BODY_TYPES.map(x=><option key={x}>{x}</option>)}</select></label>
-        <label><span><Wrench size={14}/>Motor</span><input className="field" name="engine" placeholder="2.0 TSI"/></label>
-        <label><span><Zap size={14}/>Potência (cv)</span><input className="field" name="power_cv" type="number" min="0" placeholder="220"/></label>
-        <label>Portas<input className="field" name="doors" type="number" min="2" max="6" placeholder="4"/></label>
-        <label>Estado geral<select className="field" name="condition"><option value="">Selecione</option>{CONDITIONS.map(x=><option key={x}>{x}</option>)}</select></label>
-        <label className="wide">Equipamentos e modificações<textarea className="field" name="features" rows={4} placeholder="Ar condicionado, bancos de couro, rodas aro 18, suspensão a ar, FuelTech, intercooler, escape..."/></label>
+        <VehicleBrandModelFields defaultBrand={garageVehicle?.brand||''} defaultModel={garageVehicle?.model||''}/>
+        <label><span><CalendarDays size={14}/>Ano</span><input className="field" name="year" defaultValue={garageVehicle?.year??''} type="number" min="1900" max="2100" placeholder="2017" required/></label>
+        <label><span><Gauge size={14}/>Quilometragem</span><input className="field" name="mileage" defaultValue={garageVehicle?.mileage??''} type="number" min="0" step="1" placeholder="89000" required/></label>
+        <label><span><Fuel size={14}/>Combustível</span><select className="field" name="fuel" defaultValue={garageVehicle?.fuel??''} required><option value="">Selecione</option>{FUELS.map(x=><option key={x}>{x}</option>)}</select></label>
+        <label><span><Settings2 size={14}/>Câmbio</span><select className="field" name="transmission" defaultValue={garageVehicle?.transmission??''} required><option value="">Selecione</option>{TRANSMISSIONS.map(x=><option key={x}>{x}</option>)}</select></label>
+        <label><span><Palette size={14}/>Cor</span><input className="field" name="color" defaultValue={garageVehicle?.color??''} placeholder="Branco"/></label>
+        <label>Carroceria<select className="field" name="body_type" defaultValue={garageVehicle?.body_type??''}><option value="">Selecione</option>{BODY_TYPES.map(x=><option key={x}>{x}</option>)}</select></label>
+        <label><span><Wrench size={14}/>Motor</span><input className="field" name="engine" defaultValue={garageVehicle?.engine??''} placeholder="2.0 TSI"/></label>
+        <label><span><Zap size={14}/>Potência (cv)</span><input className="field" name="power_cv" defaultValue={garageVehicle?.power_cv??''} type="number" min="0" placeholder="220"/></label>
+        <label>Portas<input className="field" name="doors" defaultValue={garageVehicle?.doors??''} type="number" min="2" max="6" placeholder="4"/></label>
+        <label>Estado geral<select className="field" name="condition" defaultValue={garageVehicle?.condition??''}><option value="">Selecione</option>{CONDITIONS.map(x=><option key={x}>{x}</option>)}</select></label>
+        <label className="wide">Equipamentos e modificações<textarea className="field" name="features" defaultValue={garageVehicle?.features??''} rows={4} placeholder="Ar condicionado, bancos de couro, rodas aro 18, suspensão a ar, FuelTech, intercooler, escape..."/></label>
       </div>
     </section>:<section className="announce-pro-section">
       <div className="announce-pro-head"><span>03</span><div><h3>DETALHES DO PRODUTO</h3><p>Informe especificações, compatibilidade e estado.</p></div></div>
-      <label className="announce-pro-label">Características<textarea className="field" name="features" rows={5} placeholder="Marca, modelo, aplicação, medidas, estado, compatibilidade, potência ou outros detalhes..."/></label>
+      <label className="announce-pro-label">Características<textarea className="field" name="features" defaultValue={garageVehicle?.features??''} rows={5} placeholder="Marca, modelo, aplicação, medidas, estado, compatibilidade, potência ou outros detalhes..."/></label>
     </section>}
 
     <section className="announce-pro-section">
@@ -243,8 +249,8 @@ export default function AnnounceForm({defaults}:{defaults?:{city?:string;state?:
         <div><h3>LOCALIZAÇÃO E CONTATO</h3><p>Informações para interessados entrarem em contato.</p></div>
       </div>
       <div className="announce-pro-grid three">
-        <label><span><MapPin size={14}/>Cidade</span><input className="field" name="city" defaultValue={defaults?.city} placeholder="Cidade" required/></label>
-        <label>UF<input className="field" name="state" defaultValue={defaults?.state} placeholder="SC" maxLength={2} required/></label>
+        <label><span><MapPin size={14}/>Cidade</span><input className="field" name="city" defaultValue={garageVehicle?.city||defaults?.city} placeholder="Cidade" required/></label>
+        <label>UF<input className="field" name="state" defaultValue={garageVehicle?.state||defaults?.state} placeholder="SC" maxLength={2} required/></label>
         <label><span><Phone size={14}/>WhatsApp</span><input className="field" name="whatsapp" defaultValue={defaults?.whatsapp} placeholder="47999999999" required/></label>
       </div>
     </section>
@@ -256,13 +262,17 @@ export default function AnnounceForm({defaults}:{defaults?:{city?:string;state?:
       </div>
 
       <div className="announce-media-grid">
+        {existingMedia.map((url,index)=><div className={`announce-media-item ${index===0?'cover':''}`} key={url}>{/\.(mp4|webm)(\?|$)/i.test(url)?<video src={url} controls preload="metadata"/>:<img src={url} alt={`Foto do carro ${index+1}`}/>}
+          {index===0?<b>CAPA</b>:null}<button type="button" onClick={()=>setExistingMedia(m=>m.filter(x=>x!==url))} aria-label="Remover foto deste anúncio"><X size={14}/></button>
+          {index>0?<button type="button" style={{top:'auto',bottom:4,left:4,right:'auto',width:'auto',padding:6}} onClick={()=>setExistingMedia(m=>[url,...m.filter(x=>x!==url)])}>Usar como capa</button>:null}
+        </div>)}
         {previews.map((item,index)=><div className={`announce-media-item ${index===0?'cover':''}`} key={`${item.file.name}-${index}`}>
           {item.file.type.startsWith('video/')?<video src={item.url} muted/>:<img src={item.url} alt="Prévia"/>}
           {index===0?<b>CAPA</b>:null}
           <button type="button" onClick={()=>removeFile(index)} aria-label="Remover"><X size={14}/></button>
         </div>)}
-        {files.length<15?<button type="button" className="announce-upload-card" onClick={()=>inputRef.current?.click()}>
-          <UploadCloud size={30}/><b>ADICIONAR MÍDIA</b><small>{files.length}/15 arquivos</small>
+        {files.length+existingMedia.length<15?<button type="button" className="announce-upload-card" onClick={()=>inputRef.current?.click()}>
+          <UploadCloud size={30}/><b>ADICIONAR MÍDIA</b><small>{files.length+existingMedia.length}/15 arquivos</small>
         </button>:null}
       </div>
       <input ref={inputRef} className="announce-hidden-input" type="file" accept="image/*,video/*" multiple onChange={e=>selectFiles(e.target.files)}/>
@@ -275,5 +285,5 @@ export default function AnnounceForm({defaults}:{defaults?:{city?:string;state?:
     </div>
 
     {msg?<div className={`form-message announce-pro-message ${msg.includes('sucesso')?'success':''}`}>{msg.includes('sucesso')?<CheckCircle2 size={16}/>:null}{msg}</div>:null}
-  </form>
+  </fieldset></form>
 }
