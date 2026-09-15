@@ -1,6 +1,6 @@
 import { Activity, ChevronRight, Trophy, Zap } from 'lucide-react'
 import ReputationBadge from '@/components/ReputationBadge'
-import { reputationProgress, REPUTATION_LEVELS, XP_ACTION_LABELS } from '@/lib/reputation'
+import { reputationProgress, REPUTATION_LEVELS, XP_ACTION_LABELS, reputationClass } from '@/lib/reputation'
 
 type Entry={id?:string|number;action_key:string;points:number;created_at?:string|null;note?:string|null}
 
@@ -18,7 +18,7 @@ export default function ReputationPanel({xp=0,level='ROOKIE',history=[]}:{xp?:nu
       <div className="reputation-xp-row"><strong>{Number(xp||0).toLocaleString('pt-BR')} XP</strong>{nextLevel?<small>Faltam <b>{progress.remaining.toLocaleString('pt-BR')} XP</b> para {nextLevel.key}</small>:<small><b>NÍVEL MÁXIMO</b> alcançado</small>}</div>
       <div className="reputation-progress"><span style={{width:`${progress.percent}%`}}/></div>
       <div className="reputation-roadmap">
-        {REPUTATION_LEVELS.map((item,index)=><div key={item.key} className={`${index<=currentIndex?'reached':''} ${item.key===progress.level?'current':''}`}><i/>{item.key}</div>)}
+        {REPUTATION_LEVELS.map((item,index)=><div key={item.key} className={`${index<=currentIndex?'reached':''} ${item.key===progress.level?'current':''}`}><img src={`/badges/${reputationClass(item.key)}.png`} alt={`Selo ${item.key}`} loading="lazy" width={52} height={52}/>{item.key}</div>)}
       </div>
       <div className="reputation-rules">
         <span><Zap size={14}/><b>+40 XP</b> anúncio publicado</span>

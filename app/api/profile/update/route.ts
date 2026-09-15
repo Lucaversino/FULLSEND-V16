@@ -27,8 +27,26 @@ export async function POST(req:Request){
 
   const form=await req.formData()
   const admin=createAdminClient()
+  const {data:current,error:currentError}=await admin.from('profiles').select('*').eq('id',user.id).single()
+  if(currentError)return NextResponse.json({error:'Não foi possível carregar seu perfil.'},{status:503})
+  const profileColor=clean(form.get('profile_color'))||current.profile_color||'#ff2546'
+  if(!/^#[0-9a-fA-F]{6}$/.test(profileColor))return NextResponse.json({error:'Escolha uma cor válida.'},{status:400})
+  let bannerUrl=current.banner_url||null
+  const banner=form.get('banner')
+  if(form.get('remove_banner')==='on')bannerUrl=null
+  if(banner instanceof File&&banner.size>0){
+    if(banner.size>3*1024*1024||!ALLOWED_TYPES.has(banner.type))return NextResponse.json({error:'Use uma capa JPG, PNG ou WebP de até 3 MB.'},{status:400})
+    const bytes=new Uint8Array(await banner.arrayBuffer())
+    const ascii=(a:number,b:number)=>String.fromCharCode(...bytes.slice(a,b))
+    const valid=banner.type==='image/jpeg'?bytes[0]===255&&bytes[1]===216&&bytes[2]===255:banner.type==='image/png'?bytes[0]===137&&ascii(1,4)==='PNG':ascii(0,4)==='RIFF'&&ascii(8,12)==='WEBP'
+    if(!valid)return NextResponse.json({error:'Arquivo de capa inválido.'},{status:400})
+    const path=`${user.id}/banner-${crypto.randomUUID()}.${extensionFor(banner)}`
+    const {error}=await admin.storage.from('profile-avatars').upload(path,bytes,{contentType:banner.type,upsert:false})
+    if(error)return NextResponse.json({error:'Não foi possível enviar a capa. Tente novamente.'},{status:400})
+    bannerUrl=admin.storage.from('profile-avatars').getPublicUrl(path).data.publicUrl
+  }
 
-  let avatarUrl=clean(form.get('current_avatar'))||null
+  let avatarUrl=current.avatar_url||null
   const avatar=form.get('avatar')
 
   if(avatar instanceof File && avatar.size>0){
@@ -61,6 +79,8 @@ export async function POST(req:Request){
   }
 
   const payload={
+    banner_url:bannerUrl,
+    profile_color:profileColor,
     name:clean(form.get('name')),
     city:clean(form.get('city')),
     state:clean(form.get('state')).toUpperCase().slice(0,2),
