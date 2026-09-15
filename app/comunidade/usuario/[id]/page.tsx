@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { safeImage } from '@/lib/community/shared'
 import { z } from 'zod'
+import ProfileCoverEditor from '@/components/ProfileCoverEditor'
 import { CalendarDays, Car, MapPin, MessageSquareText, Pencil, Plus, Trophy, Users, Wrench, Zap } from 'lucide-react'
 
 export const dynamic='force-dynamic'
@@ -22,7 +23,7 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
   const s=await createClient()
 
   const [{data:p,error},{data:{user}},counts,cars,postCount,eventCount]=await Promise.all([
-    s.from('profiles').select('id,name,avatar_url,city,state,bio,badge,xp_points,reputation_level,created_at').eq('id',id).maybeSingle(),
+    s.from('profiles').select('id,name,avatar_url,profile_cover_url,city,state,bio,badge,xp_points,reputation_level,created_at').eq('id',id).maybeSingle(),
     s.auth.getUser(),
     s.rpc('community_follow_counts',{target:id}),
     s.from('listings').select('id,title,cover_url,brand,model,year,power_cv,vehicle_styles,description').eq('user_id',id).eq('listing_mode','garage').eq('status','active').order('created_at',{ascending:false}).range((page-1)*12,page*12),
@@ -43,7 +44,7 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
 
   return <>
     <section className="cm-public-profile" id="perfil">
-      <div className="cm-profile-cover" aria-hidden="true"><span>FULLSEND</span><b>GARAGE PROFILE</b></div>
+      <div className={`cm-profile-cover ${safeImage((p as any).profile_cover_url)?'has-image':''}`} style={safeImage((p as any).profile_cover_url)?{backgroundImage:`linear-gradient(90deg,rgba(5,5,7,.42),rgba(10,0,3,.22)),url(${safeImage((p as any).profile_cover_url)})`}:undefined}><span>FULLSEND</span><b>GARAGE PROFILE</b>{own?<ProfileCoverEditor/>:null}</div>
       <div className="cm-profile-shell">
         <div className="cm-profile-identity">
           <span className="cm-profile-avatar-xl">{safeImage(p.avatar_url)?<img src={safeImage(p.avatar_url)} alt={`Foto de ${p.name||'membro FULLSEND'}`}/>:<b>{(p.name||'F').slice(0,1).toUpperCase()}</b>}</span>
