@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Search, User, LogIn, ShieldCheck } from 'lucide-react'
+import { Search, User, LogIn, ShieldCheck, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import LogoutButton from '@/components/LogoutButton'
 
@@ -21,6 +21,9 @@ export default async function Header() {
         <div className="header-spacer" />
 
         <div className="header-actions">
+          <Link className="community-header-link" href="/comunidade" aria-label="Abrir Comunidade FULLSEND">
+            <Users size={18}/><span>COMUNIDADE</span>
+          </Link>
           <Link className="icon-link fx-icon-btn" href="/explorar" aria-label="Pesquisar">
             <Search size={19} />
           </Link>

@@ -49,7 +49,7 @@ export default function CommunityFeed({author,vehicle,tag,postId,saved=false}:{a
    {composing&&<Composer vehicleId={vehicle} onClose={()=>setComposing(false)} onDone={()=>{setComposing(false);refresh()}}/>}
    {(people.length>0||cars.length>0)&&<div className="cm-card cm-search-results">{people.length>0&&<><h3>Pessoas</h3>{people.map(p=><UserResult key={p.id} person={p}/>)}</>}{cars.length>0&&<><h3>Carros e projetos</h3>{cars.map(c=><Link key={c.id} href={`/comunidade/projeto/${c.id}`}>{c.title} →</Link>)}</>}</div>}
    {error&&<div role="alert" className="cm-card cm-error"><p>{error}</p><button onClick={()=>setTick(n=>n+1)}>Tentar novamente</button></div>}
-   {posts.map(p=><PostCard key={`${p.id}:${p.updated_at}`} post={p} viewer={viewer} isAdmin={isAdmin} onChange={refresh}/>)}
+   {posts.map(p=><PostCard key={`${p.id}:${p.updated_at}`} post={p} viewer={viewer} isAdmin={isAdmin} onChange={refresh} openDetailByDefault={Boolean(postId)}/>)}
    {loading&&<div className="cm-card cm-empty" role="status">Carregando publicações…</div>}
    {!loading&&!error&&!posts.length&&<div className="cm-card cm-empty"><h3>{postId?'Publicação indisponível':'Nenhuma publicação por aqui ainda'}</h3><p>{postId?'O conteúdo pode ter sido removido ou ocultado.':query?'Tente outro termo de busca.':saved?'As publicações que você salvar aparecerão aqui.':'Compartilhe uma foto, uma dúvida ou a evolução do seu carro.'}</p>{!postId&&!saved&&<button className="cm-primary" onClick={create} disabled={sessionBusy}>Criar publicação</button>}</div>}
    {more&&!loading&&!error&&<button className="cm-load" onClick={()=>setPage(p=>p+1)}>Carregar mais publicações</button>}
