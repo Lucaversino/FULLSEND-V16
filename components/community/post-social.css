@@ -1,5 +1,5 @@
 /* Media first, readable captions and visible social actions. */
-.cm-post{padding:20px;border-radius:18px;overflow:hidden}
+.cm-post{width:100%;max-width:620px;margin-left:auto;margin-right:auto;padding:20px;border-radius:18px;overflow:hidden}
 .cm-post .cm-post-head{margin-bottom:16px}
 .cm-post .cm-media{margin:0 -20px;background:#08080a;overflow:hidden}
 .cm-post .cm-media>div{min-width:0}
@@ -21,7 +21,7 @@
 .cm-post .cm-caption-toggle:hover{color:white;text-decoration:underline}
 .cm-post .cm-tags{font-size:12px;gap:8px;flex-wrap:wrap}
 .cm-post .cm-share{margin-top:14px;padding-top:10px;border-top:1px solid #29292f}
-@media(max-width:600px){.cm-post{padding:14px;border-radius:14px}.cm-post .cm-media{margin-left:-14px;margin-right:-14px}.cm-post .cm-media img,.cm-post .cm-media video{max-height:75dvh}.cm-post .cm-actions{gap:5px;padding-top:12px}.cm-post .cm-actions button{font-size:10px;min-height:60px;padding:8px 2px;letter-spacing:0}.cm-post .cm-actions button svg{width:23px;height:23px}.cm-post>.cm-content{font-size:14px}}
+@media(max-width:600px){.cm-post{max-width:none;padding:14px;border-radius:14px}.cm-post .cm-media{margin-left:-14px;margin-right:-14px}.cm-post .cm-media img,.cm-post .cm-media video{max-height:75dvh}.cm-post .cm-actions{gap:5px;padding-top:12px}.cm-post .cm-actions button{font-size:10px;min-height:60px;padding:8px 2px;letter-spacing:0}.cm-post .cm-actions button svg{width:23px;height:23px}.cm-post>.cm-content{font-size:14px}}
 @media(prefers-reduced-motion:reduce){.cm-post .cm-actions button,.cm-post .cm-actions button svg{transition:none}}
 
 .cm-post .cm-gallery-hint{font-size:11px;color:#a9a9b3;text-align:right;margin:8px 0 0}.cm-post .cm-media:focus-visible{outline:2px solid #ff6179;outline-offset:-3px}
