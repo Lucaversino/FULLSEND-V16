@@ -9,6 +9,7 @@ import Footer from '@/components/Footer'
 import FullsendCopilot from '@/components/FullsendCopilot'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
 import FloatingMessagesButton from '@/components/FloatingMessagesButton'
+import FloatingCommunityButton from '@/components/FloatingCommunityButton'
 
 export const metadata: Metadata = {
   applicationName: 'FULLSEND Classificados',
@@ -26,5 +27,5 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: '#070707', colorScheme: 'dark', width: 'device-width', initialScale: 1, viewportFit: 'cover' }
 
 export default function RootLayout({children}:{children:React.ReactNode}){
-  return <html lang="pt-BR"><body><PWARegister/><AnalyticsTracker/><Header/><MobileAnnounceButton/>{children}<Footer/><FloatingMessagesButton/><FullsendCopilot/><InstallPWA/></body></html>
+  return <html lang="pt-BR"><body><PWARegister/><AnalyticsTracker/><Header/><MobileAnnounceButton/>{children}<Footer/><FloatingMessagesButton/><FloatingCommunityButton/><FullsendCopilot/><InstallPWA/></body></html>
 }
