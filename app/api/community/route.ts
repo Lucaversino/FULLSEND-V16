@@ -54,7 +54,7 @@ export async function POST(req:Request){try{
  origin(req);const {s,user}=await context(true);const b=await req.json()
  if(b.action==='post'){
   const p=postSchema.parse(b.post)
-  if(p.media.some(m=>!m.path.startsWith(`${user!.id}/`)||m.path.includes('..')))throw new CommunityError('Mídia inválida.')
+  if(p.media.some(m=>!m.path.startsWith(`${user!.id}/`)||m.path.includes('..')||(m.posterPath&&(!m.posterPath.startsWith(`${user!.id}/`)||m.posterPath.includes('..')))))throw new CommunityError('Mídia inválida.')
   // UUID do rascunho torna repetição após perda de conexão idempotente.
   const existing=checked(await s.from('community_posts').select('id,user_id').eq('id',p.id).maybeSingle()).data
   if(existing){if(existing.user_id!==user!.id)throw new CommunityError('Publicação inválida.',403);return NextResponse.json({id:existing.id})}
@@ -85,7 +85,7 @@ export async function POST(req:Request){try{
 }catch(e){return failure(e)}}
 export async function PATCH(req:Request){try{
  origin(req);const {s,user}=await context(true);const b=await req.json();const p=postSchema.parse(b.post)
- if(p.media.some(m=>!m.path.startsWith(`${user!.id}/`)||m.path.includes('..')))throw new CommunityError('Mídia inválida.')
+ if(p.media.some(m=>!m.path.startsWith(`${user!.id}/`)||m.path.includes('..')||(m.posterPath&&(!m.posterPath.startsWith(`${user!.id}/`)||m.posterPath.includes('..')))))throw new CommunityError('Mídia inválida.')
  const {data}=checked(await s.from('community_posts').update(p).eq('id',p.id).eq('user_id',user!.id).select('id').maybeSingle())
  if(!data)throw new CommunityError('Publicação indisponível para edição.',404)
  return NextResponse.json({id:p.id})

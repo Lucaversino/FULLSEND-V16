@@ -3,7 +3,15 @@ export const POST_TYPES = ['Post normal','Meu projeto','Dúvida','Evento','Encon
 export const FILTERS = ['Para você','Seguindo','Projetos','Perto de mim','Eventos','Dúvidas','Mais curtidos','Recentes'] as const
 export const REASONS = ['Spam','Conteúdo ofensivo','Golpe','Anúncio irregular','Conteúdo impróprio','Outro'] as const
 export const MIME = ['image/jpeg','image/png','image/webp','video/mp4','video/webm'] as const
-export const mediaSchema = z.object({path:z.string().min(1).max(250),type:z.enum(MIME)})
+export const mediaSchema = z.object({
+ path:z.string().min(1).max(250),
+ type:z.enum(MIME),
+ posterPath:z.string().min(1).max(250).optional(),
+ duration:z.number().positive().max(60*60*6).optional(),
+ width:z.number().int().positive().max(7680).optional(),
+ height:z.number().int().positive().max(7680).optional(),
+ aspectRatio:z.string().max(20).optional(),
+})
 export const postSchema = z.object({
  id:z.string().uuid(), content:z.string().trim().min(1).max(5000), post_type:z.enum(POST_TYPES),
  vehicle_id:z.string().uuid().nullable(), event_id:z.string().uuid().nullable(),
@@ -18,7 +26,7 @@ export const postSchema = z.object({
  if(p.post_type==='Vídeo'&&!p.media.some(m=>m.type.startsWith('video/')))c.addIssue({code:'custom',message:'Adicione um vídeo.'})
 })
 export type PostInput = z.infer<typeof postSchema>
-export type CommunityPost = Omit<PostInput,'media'> & {user_id:string;created_at:string;updated_at:string;likes_count:number;comments_count:number;liked:boolean;saved:boolean;status:string;author:any;vehicle:any;event:any;media:(z.infer<typeof mediaSchema>&{url?:string})[]}
+export type CommunityPost = Omit<PostInput,'media'> & {user_id:string;created_at:string;updated_at:string;likes_count:number;comments_count:number;liked:boolean;saved:boolean;status:string;author:any;vehicle:any;event:any;media:(z.infer<typeof mediaSchema>&{url?:string;posterUrl?:string})[]}
 export function safeImage(url?:string|null){return url && /^https?:\/\//i.test(url) ? url : undefined}
 export async function request(url:string,body?:unknown,method='POST'){
  const res=await fetch(url,body===undefined?{cache:'no-store'}:{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
