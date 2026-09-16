@@ -1,5 +1,5 @@
 /* Media first, readable captions and visible social actions. */
-.cm-post{width:100%;max-width:620px;margin-left:auto;margin-right:auto;padding:20px;border-radius:18px;overflow:hidden}
+.cm-post{width:100%;max-width:580px;margin-left:auto;margin-right:auto;padding:20px;border-radius:18px;overflow:hidden}
 .cm-post .cm-post-head{margin-bottom:16px}
 .cm-post .cm-media{margin:0 -20px;background:#08080a;overflow:hidden}
 .cm-post .cm-media>div{min-width:0}
