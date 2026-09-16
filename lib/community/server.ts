@@ -33,9 +33,9 @@ export function failure(e:unknown){
 }
 export function origin(req:Request){const from=req.headers.get('origin');if(from&&from!==new URL(req.url).origin)throw new CommunityError('Origem não permitida.',403)}
 export async function signedMedia(s:any,rows:any[]){
- const paths=Array.from(new Set(rows.flatMap(p=>(p.media||[]).flatMap((m:any)=>[m.path,m.posterPath].filter(Boolean))))) as string[]
+ const paths=Array.from(new Set(rows.flatMap(p=>(p.media||[]).map((m:any)=>m.path)))) as string[]
  if(!paths.length)return rows
  const {data}=checked(await s.storage.from('community-media').createSignedUrls(paths,300)) as any
  const urls=new Map((data||[]).map((m:any)=>[m.path,m.signedUrl]))
- return rows.map(p=>({...p,media:(p.media||[]).map((m:any)=>({...m,url:urls.get(m.path)||null,posterUrl:m.posterPath?urls.get(m.posterPath)||null:null}))}))
+ return rows.map(p=>({...p,media:(p.media||[]).map((m:any)=>({...m,url:urls.get(m.path)||null}))}))
 }

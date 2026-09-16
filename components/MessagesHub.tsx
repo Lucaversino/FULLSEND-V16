@@ -3,11 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { MessageSquare, Send, Loader2, Search, ArrowLeft, Paperclip, X } from 'lucide-react'
 import MessageAttachments, { ChatAttachment } from '@/components/MessageAttachments'
-import VerifiedAvatarBadge from '@/components/VerifiedAvatarBadge'
 
 type Conv={
   id:string
-  other:{id:string;name:string;avatar_url?:string|null;badge?:string|null;is_verified?:boolean}
+  other:{id:string;name:string;avatar_url?:string|null;badge?:string|null}
   listing?:{id:string;title:string;slug:string;cover_url?:string|null}|null
   lastMessage?:{body:string;created_at:string;sender_id:string;read_at?:string|null;attachments?:ChatAttachment[]}|null
   unread:number
@@ -104,7 +103,7 @@ export default function MessagesHub({currentUserId,conversations:initialConversa
       <div className="messages-search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar conversa..."/></div>
       <div className="messages-conversations">
         {filtered.length?filtered.map(c=><button key={c.id} onClick={()=>selectConversation(c.id)} className={`messages-conv ${c.id===activeId?'active':''}`}>
-          <span className="verified-avatar-wrap"><div className="messages-avatar">{c.other.avatar_url?<img src={c.other.avatar_url} alt=""/>:<span>{(c.other.name||'U')[0].toUpperCase()}</span>}</div><VerifiedAvatarBadge active={c.other.is_verified}/></span>
+          <div className="messages-avatar">{c.other.avatar_url?<img src={c.other.avatar_url} alt=""/>:<span>{(c.other.name||'U')[0].toUpperCase()}</span>}</div>
           <div className="messages-conv-copy">
             <div className="messages-conv-top"><strong>{c.other.name||'Usuário FULLSEND'}</strong>{c.unread>0?<b>{c.unread}</b>:null}</div>
             {c.listing?<small>{c.listing.title}</small>:null}
@@ -118,7 +117,7 @@ export default function MessagesHub({currentUserId,conversations:initialConversa
       {active?<>
         <div className="messages-chat-head">
           <a href="/mensagens" className="messages-mobile-back"><ArrowLeft size={18}/></a>
-          <span className="verified-avatar-wrap"><div className="messages-avatar">{active.other.avatar_url?<img src={active.other.avatar_url} alt=""/>:<span>{(active.other.name||'U')[0].toUpperCase()}</span>}</div><VerifiedAvatarBadge active={active.other.is_verified}/></span>
+          <div className="messages-avatar">{active.other.avatar_url?<img src={active.other.avatar_url} alt=""/>:<span>{(active.other.name||'U')[0].toUpperCase()}</span>}</div>
           <div><strong>{active.other.name||'Usuário FULLSEND'}</strong>{active.listing?<a href={`/anuncio/${active.listing.slug}`}>Sobre: {active.listing.title}</a>:<small>Conversa direta</small>}</div>
         </div>
 

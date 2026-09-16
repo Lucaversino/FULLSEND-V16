@@ -3,10 +3,6 @@
     {
       "path": "/api/cron/import-searches",
       "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/cleanup-events",
-      "schedule": "15 3 * * *"
     }
   ]
 }

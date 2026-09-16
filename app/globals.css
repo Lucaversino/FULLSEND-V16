@@ -4057,9 +4057,3 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
   .copilot-bubble p{font-size:14px}
   .copilot-car{grid-template-columns:106px 1fr}
 }
-
-/* V17.6.3 — selo verificado sempre ancorado à foto do perfil */
-.verified-avatar-wrap{position:relative;display:inline-flex;flex:0 0 auto;overflow:visible!important}
-.verified-avatar-badge{position:absolute;right:-5px;bottom:-3px;z-index:8;width:19px;height:19px;display:grid;place-items:center;border-radius:50%;background:#0c0c0f;box-shadow:0 0 0 2px #0c0c0f;pointer-events:none}
-.verified-avatar-badge img{width:100%!important;height:100%!important;object-fit:contain!important;display:block!important}
-@media(max-width:600px){.verified-avatar-badge{width:17px;height:17px;right:-4px;bottom:-2px}}

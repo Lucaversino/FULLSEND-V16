@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Edit3, MapPin, MessageCircle, Instagram, Mail, X } from 'lucide-react'
-import VerifiedAvatarBadge from '@/components/VerifiedAvatarBadge'
+import VerifiedBadge from '@/components/VerifiedBadge'
 import VerifiedPurchase from '@/components/VerifiedPurchase'
 import ProfileEditor from '@/components/ProfileEditor'
 import UserBadge from '@/components/UserBadge'
@@ -13,14 +13,14 @@ export default function ProfileOverview({profile,email,isVip:_isVip}:{profile:an
   return <><section className="user-profile-card">
     <div className="user-profile-main">
       <div className="user-avatar-wrap">
-        <span className="verified-avatar-wrap"><div className="user-avatar">
+        <div className="user-avatar">
           {profile?.avatar_url?<img src={profile.avatar_url} alt="Foto de perfil"/>:<span>{String(profile?.name||'F').slice(0,1).toUpperCase()}</span>}
-        </div><VerifiedAvatarBadge active={profile?.is_verified}/></span>
+        </div>
         <UserBadge badge={profile?.badge}/>
       </div>
       <div className="user-profile-copy">
         <span className="user-overline">PERFIL FULLSEND</span>
-        <div className="profile-name-with-badge"><h2>{profile?.name||'Membro FULLSEND'}</h2><ReputationBadge level={profile?.reputation_level||'ROOKIE'} xp={profile?.xp_points}/></div>
+        <div className="profile-name-with-badge"><h2>{profile?.name||'Membro FULLSEND'}</h2><VerifiedBadge active={profile?.is_verified}/><ReputationBadge level={profile?.reputation_level||'ROOKIE'} xp={profile?.xp_points}/></div>
         <p>{profile?.bio||'Sua garagem, seus projetos e sua identidade automotiva.'}</p>
       </div>
       <button className="user-edit-profile-btn" onClick={()=>setEditing(true)}><Edit3 size={15}/> EDITAR PERFIL</button>

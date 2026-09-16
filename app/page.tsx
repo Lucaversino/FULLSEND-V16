@@ -386,8 +386,8 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
     .select('id,slug,title,category,event_date,city,state,image_url,featured')
     .eq('status','published')
     .gte('event_date',today)
+    .order('featured',{ascending:false})
     .order('event_date',{ascending:true})
-    .order('event_time',{ascending:true,nullsFirst:false})
     .limit(18)
   const homeEvents=(homeEventsData||[]) as any[]
 
@@ -425,7 +425,7 @@ export default async function Home({searchParams}:{searchParams:Promise<Record<s
         </section>
       </div>
 
-      <HomeEventsCarousel events={homeEvents} title="AGENDA AUTOMOTIVA FULLSEND" randomize autoplay/>
+      <HomeEventsCarousel events={homeEvents} title="AGENDA AUTOMOTIVA FULLSEND"/>
     </div>
   </main>
 }
