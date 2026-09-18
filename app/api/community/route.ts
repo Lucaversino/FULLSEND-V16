@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { postSchema, REASONS } from '@/lib/community/shared'
 import { context, checked, failure, origin, signedMedia, CommunityError } from '@/lib/community/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isOwnedCommunityMediaPath } from '@/lib/community/cloudinary'
 export const dynamic='force-dynamic'
 const uuid=z.string().uuid()
 export async function GET(req:Request){try{
@@ -14,7 +15,6 @@ export async function GET(req:Request){try{
   const term=(q.get('q')||'').trim().slice(0,100).replace(/[\\%_]/g,'')
   const pageSize=5
   let query=s.from('profiles').select('id,name,avatar_url,city,state').eq('account_status','active')
-  // Sugestões iniciais usam membros reais recentes; a pesquisa inclui a própria conta.
   if(term)query=query.ilike('name',`%${term}%`)
   else if(user)query=query.neq('id',user.id)
   const {data}=checked(await query.order('created_at',{ascending:false}).order('id').range((page-1)*pageSize,page*pageSize))
@@ -26,7 +26,6 @@ export async function GET(req:Request){try{
  }
  if(q.get('mode')==='options'){
   if(!user)throw new CommunityError('Entre na sua conta.',401)
-  // Busca paginada de carros/eventos; não carrega toda a garagem de uma só vez.
   const kind=q.get('kind')||'vehicles';const search=(q.get('q')||'').slice(0,100).replace(/[%_]/g,'')
   let query=kind==='events'?s.from('events').select('id,title,slug,status').eq('created_by',user.id):s.from('listings').select('id,title,slug,status').eq('user_id',user.id).eq('listing_mode','garage')
   if(search)query=query.ilike('title',`%${search}%`)
@@ -49,8 +48,7 @@ export async function POST(req:Request){try{
  origin(req);const {s,user}=await context(true);const b=await req.json()
  if(b.action==='post'){
   const p=postSchema.parse(b.post)
-  if(p.media.some(m=>!m.path.startsWith(`${user!.id}/`)||m.path.includes('..')))throw new CommunityError('Mídia inválida.')
-  // UUID do rascunho torna repetição após perda de conexão idempotente.
+  if(p.media.some(m=>!isOwnedCommunityMediaPath(m.path,user!.id)))throw new CommunityError('Mídia inválida.')
   const existing=checked(await s.from('community_posts').select('id,user_id').eq('id',p.id).maybeSingle()).data
   if(existing){if(existing.user_id!==user!.id)throw new CommunityError('Publicação inválida.',403);return NextResponse.json({id:existing.id})}
   checked(await s.from('community_posts').insert({...p,user_id:user!.id}));return NextResponse.json({id:p.id})
@@ -80,7 +78,7 @@ export async function POST(req:Request){try{
 }catch(e){return failure(e)}}
 export async function PATCH(req:Request){try{
  origin(req);const {s,user}=await context(true);const b=await req.json();const p=postSchema.parse(b.post)
- if(p.media.some(m=>!m.path.startsWith(`${user!.id}/`)||m.path.includes('..')))throw new CommunityError('Mídia inválida.')
+ if(p.media.some(m=>!isOwnedCommunityMediaPath(m.path,user!.id)))throw new CommunityError('Mídia inválida.')
  const {data}=checked(await s.from('community_posts').update(p).eq('id',p.id).eq('user_id',user!.id).select('id').maybeSingle())
  if(!data)throw new CommunityError('Publicação indisponível para edição.',404)
  return NextResponse.json({id:p.id})
