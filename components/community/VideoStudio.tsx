@@ -1,348 +1,116 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronLeft, Film, Music2, Pause, Play, Scissors, Trash2, Upload, Volume2, X, Zap } from 'lucide-react'
-import { request } from '@/lib/community/shared'
+import { Check, ChevronLeft, Image as ImageIcon, Pause, Play, RotateCcw, Save, Scissors, Sparkles, Trash2, Volume2, X } from 'lucide-react'
 import './video-studio.css'
 
+type Ratio='vertical'|'square'|'wide'|'original'
+type Quality='1080'|'720'|'auto'
+type Segment={id:string;start:number;end:number;keep:boolean}
 type MusicTrack={id:string;file:File;url:string;start:number;volume:number;duration:number}
-type Ratio='original'|'vertical'|'square'
-type CropMode='fill'|'fit'
-type Quality='720'|'1080'
-type CloudinaryUpload={publicId:string;secureUrl:string}
-type ProcessedVideo={path:string;type:'video/mp4';url:string}
-type CaptionState='idle'|'working'|'ready'|'skipped'
+type Caption={id:string;start:number;end:number;text:string}
+type Tool='cut'|'music'|'captions'|'format'|'speed'|'text'|'cover'
 
-const MAX_VIDEO_BYTES=100*1024*1024
-const MAX_AUDIO_BYTES=20*1024*1024
+const uid=()=>crypto.randomUUID()
+const fmt=(value:number)=>{const safe=Math.max(0,Number.isFinite(value)?value:0),h=Math.floor(safe/3600),m=Math.floor((safe%3600)/60),s=Math.floor(safe%60),d=Math.floor((safe%1)*10);return h?`${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`:`${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}.${d}`}
+const wait=(media:HTMLMediaElement,event:string)=>new Promise<void>((resolve,reject)=>{const done=()=>{clean();resolve()},fail=()=>{clean();reject(new Error('Não foi possível ler esta mídia.'))},clean=()=>{media.removeEventListener(event,done);media.removeEventListener('error',fail)};media.addEventListener(event,done,{once:true});media.addEventListener('error',fail,{once:true})})
+function recorderType(){if(typeof MediaRecorder==='undefined')return '';return ['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(type=>MediaRecorder.isTypeSupported(type))||''}
 
-const fmt=(value:number)=>{
- const safe=Math.max(0,Number.isFinite(value)?value:0)
- const minutes=Math.floor(safe/60)
- return `${minutes}:${Math.floor(safe%60).toString().padStart(2,'0')}.${Math.floor((safe%1)*10)}`
-}
-const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms))
-
-async function uploadCloudinary(file:File,kind:'video'|'audio',onProgress:(value:number)=>void):Promise<CloudinaryUpload>{
- const signed=await request('/api/community/video/sign',{kind}) as {cloudName:string;apiKey:string;timestamp:number;signature:string;folder:string}
- return new Promise((resolve,reject)=>{
-  const xhr=new XMLHttpRequest()
-  const form=new FormData()
-  form.append('file',file)
-  form.append('api_key',signed.apiKey)
-  form.append('timestamp',String(signed.timestamp))
-  form.append('signature',signed.signature)
-  form.append('folder',signed.folder)
-  xhr.open('POST',`https://api.cloudinary.com/v1_1/${encodeURIComponent(signed.cloudName)}/video/upload`)
-  xhr.responseType='json'
-  xhr.upload.onprogress=event=>{if(event.lengthComputable)onProgress(Math.max(0,Math.min(1,event.loaded/event.total)))}
-  xhr.onerror=()=>reject(new Error('A conexão caiu durante o envio para o processador de vídeo.'))
-  xhr.onload=()=>{
-   const data=xhr.response||{}
-   if(xhr.status<200||xhr.status>=300){reject(new Error(data?.error?.message||'O processador de vídeo recusou o arquivo.'));return}
-   if(!data.public_id||!data.secure_url){reject(new Error('O processador não retornou os dados do vídeo.'));return}
-   onProgress(1)
-   resolve({publicId:String(data.public_id),secureUrl:String(data.secure_url)})
-  }
-  xhr.send(form)
- })
-}
-
-async function probeRemoteVideo(url:string){
- for(let attempt=0;attempt<10;attempt++){
-  const ok=await new Promise<boolean>(resolve=>{
-   const video=document.createElement('video')
-   let done=false
-   const finish=(value:boolean)=>{
-    if(done)return
-    done=true
-    window.clearTimeout(timer)
-    video.onloadedmetadata=null
-    video.onerror=null
-    video.removeAttribute('src')
-    try{video.load()}catch{}
-    resolve(value)
-   }
-   const timer=window.setTimeout(()=>finish(false),8000)
-   video.preload='metadata'
-   video.playsInline=true
-   video.onloadedmetadata=()=>finish(true)
-   video.onerror=()=>finish(false)
-   video.src=`${url}${url.includes('?')?'&':'?'}fsprobe=${Date.now()}-${attempt}`
-   video.load()
-  })
-  if(ok)return
-  await sleep(1800+attempt*350)
- }
- throw new Error('O vídeo foi enviado, mas o processamento ainda não terminou. Tente confirmar novamente em alguns instantes.')
-}
-
-export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCancel:()=>void;onConfirm:(media:ProcessedVideo)=>void}){
+export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCancel:()=>void;onConfirm:(file:File)=>void}){
  const sourceUrl=useMemo(()=>URL.createObjectURL(file),[file])
- const videoRef=useRef<HTMLVideoElement>(null)
- const musicInput=useRef<HTMLInputElement>(null)
- const audioRefs=useRef(new Map<string,HTMLAudioElement>())
- const tracksRef=useRef<MusicTrack[]>([])
- const [duration,setDuration]=useState(0),[current,setCurrent]=useState(0),[start,setStart]=useState(0),[end,setEnd]=useState(0)
- const [playing,setPlaying]=useState(false),[speed,setSpeed]=useState<.5|1|1.5|2>(1),[ratio,setRatio]=useState<Ratio>('vertical')
- const [cropMode,setCropMode]=useState<CropMode>('fill'),[quality,setQuality]=useState<Quality>('1080'),[originalVolume,setOriginalVolume]=useState(1)
- const [tracks,setTracks]=useState<MusicTrack[]>([]),[exporting,setExporting]=useState(false),[progress,setProgress]=useState(0),[stage,setStage]=useState('')
- const [captionsEnabled,setCaptionsEnabled]=useState(true),[captionState,setCaptionState]=useState<CaptionState>('idle'),[captionMessage,setCaptionMessage]=useState('Detecta a fala e sincroniza automaticamente.')
- const [error,setError]=useState('')
-
+ const videoRef=useRef<HTMLVideoElement>(null),musicInput=useRef<HTMLInputElement>(null),tracksRef=useRef<MusicTrack[]>([])
+ const [duration,setDuration]=useState(0),[current,setCurrent]=useState(0),[playing,setPlaying]=useState(false)
+ const [ratio,setRatio]=useState<Ratio>('vertical'),[quality,setQuality]=useState<Quality>('1080'),[speed,setSpeed]=useState<.5|1|1.5|2>(1),[volume,setVolume]=useState(.76),[tool,setTool]=useState<Tool>('cut')
+ const [segments,setSegments]=useState<Segment[]>([]),[activeSegment,setActiveSegment]=useState(0),[undoStack,setUndoStack]=useState<Segment[][]>([])
+ const [tracks,setTracks]=useState<MusicTrack[]>([]),[captions,setCaptions]=useState<Caption[]>([]),[overlayText,setOverlayText]=useState(''),[coverTime,setCoverTime]=useState(0)
+ const [captionStatus,setCaptionStatus]=useState<'idle'|'working'|'ready'|'error'>('idle'),[captionMessage,setCaptionMessage]=useState('Toque para gerar legendas automáticas no navegador.')
+ const [detecting,setDetecting]=useState(false),[exporting,setExporting]=useState(false),[progress,setProgress]=useState(0),[error,setError]=useState('')
+ const active=segments[activeSegment]
  useEffect(()=>{tracksRef.current=tracks},[tracks])
- useEffect(()=>()=>{URL.revokeObjectURL(sourceUrl);tracksRef.current.forEach(track=>URL.revokeObjectURL(track.url))},[sourceUrl])
- useEffect(()=>{
-  const video=videoRef.current
-  if(video){video.playbackRate=speed;video.volume=originalVolume}
-  audioRefs.current.forEach(audio=>audio.playbackRate=speed)
- },[speed,originalVolume])
+ useEffect(()=>()=>{URL.revokeObjectURL(sourceUrl);tracksRef.current.forEach(t=>URL.revokeObjectURL(t.url))},[sourceUrl])
+ useEffect(()=>{const v=videoRef.current;if(v){v.playbackRate=speed;v.volume=volume}},[speed,volume])
 
- function syncMusic(time:number,shouldPlay=playing){
-  tracks.forEach(track=>{
-   const audio=audioRefs.current.get(track.id)
-   if(!audio)return
-   const local=time-track.start
-   audio.volume=track.volume
-   audio.playbackRate=speed
-   if(local>=0&&local<track.duration){
-    if(Math.abs(audio.currentTime-local)>.45)audio.currentTime=local
-    if(shouldPlay)audio.play().catch(()=>{})
-   }else{
-    audio.pause()
-    if(audio.currentTime)audio.currentTime=0
-   }
-  })
- }
+ function snapshot(){setUndoStack(stack=>[...stack.slice(-9),segments.map(s=>({...s}))])}
+ function undo(){const prev=undoStack.at(-1);if(!prev)return;setSegments(prev);setUndoStack(stack=>stack.slice(0,-1));setActiveSegment(Math.min(activeSegment,Math.max(0,prev.length-1)))}
+ function seek(value:number){const next=Math.max(0,Math.min(duration||0,value));setCurrent(next);const v=videoRef.current;if(v&&Math.abs(v.currentTime-next)>.04)v.currentTime=next}
+ async function toggle(){const v=videoRef.current;if(!v)return;if(v.paused){v.playbackRate=speed;v.volume=volume;await v.play().catch(()=>setError('O navegador bloqueou a reprodução. Toque novamente.'))}else v.pause()}
+ function selectSegment(index:number){setActiveSegment(index);const seg=segments[index];if(seg)seek(seg.start)}
+ function patchActive(patch:Partial<Segment>){if(!active)return;snapshot();setSegments(items=>items.map((s,i)=>i===activeSegment?{...s,...patch}:s))}
+ function splitHere(){if(!active||current<=active.start+.15||current>=active.end-.15)return;snapshot();setSegments(items=>{const next=[...items];next.splice(activeSegment,1,{...active,id:uid(),end:current},{...active,id:uid(),start:current});return next});setActiveSegment(activeSegment+1)}
+ function toggleKeep(index:number){snapshot();setSegments(items=>items.map((s,i)=>i===index?{...s,keep:!s.keep}:s))}
 
- function seek(value:number){
-  const next=Math.min(end||duration,Math.max(start,value))
-  setCurrent(next)
-  if(videoRef.current)videoRef.current.currentTime=next
-  syncMusic(next,false)
- }
-
- async function toggle(){
-  const video=videoRef.current
-  if(!video)return
-  if(video.paused){
-   if(video.currentTime<start||video.currentTime>=end)video.currentTime=start
-   setPlaying(true)
-   syncMusic(video.currentTime,true)
-   await video.play().catch(()=>setError('Toque novamente para iniciar a prévia.'))
-  }else video.pause()
- }
-
- function addMusic(files:FileList|null){
-  const picked=Array.from(files||[]).slice(0,Math.max(0,4-tracks.length))
-  if(!picked.length)return
-  setError('')
-  for(const pickedFile of picked){
-   if(!pickedFile.type.startsWith('audio/')){setError('Escolha um arquivo de áudio válido.');continue}
-   if(pickedFile.size>MAX_AUDIO_BYTES){setError('Cada música pode ter no máximo 20 MB.');continue}
-   const url=URL.createObjectURL(pickedFile),audio=new Audio(url)
-   audio.preload='metadata'
-   audio.onloadedmetadata=()=>{
-    setTracks(items=>{
-     if(items.length>=4){URL.revokeObjectURL(url);return items}
-     return [...items,{id:crypto.randomUUID(),file:pickedFile,url,start:current,volume:.85,duration:Number.isFinite(audio.duration)?audio.duration:0}]
-    })
-   }
-   audio.onerror=()=>{URL.revokeObjectURL(url);setError(`Não foi possível abrir ${pickedFile.name}.`)}
-  }
- }
-
- function removeTrack(id:string){
-  setTracks(items=>{
-   const found=items.find(track=>track.id===id)
-   if(found)URL.revokeObjectURL(found.url)
-   return items.filter(track=>track.id!==id)
-  })
- }
- function updateTrack(id:string,patch:Partial<MusicTrack>){setTracks(items=>items.map(track=>track.id===id?{...track,...patch}:track))}
-
- function cutStartHere(){
-  if(current>=end-.2)return
-  setStart(current)
-  setError('')
- }
- function cutEndHere(){
-  if(current<=start+.2)return
-  setEnd(current)
-  setError('')
- }
-
- async function makeCaptions(publicId:string){
-  if(!captionsEnabled)return false
-  setCaptionState('working')
-  setCaptionMessage('Gerando legenda automática… isso pode levar alguns segundos.')
+ async function smartCut(){
+  const source=videoRef.current;if(!source||!duration||detecting)return;setDetecting(true);setError('');const old=source.currentTime,wasPlaying=!source.paused;source.pause()
   try{
-   await request('/api/community/video/transcript',{action:'start',publicId})
-   for(let attempt=0;attempt<45;attempt++){
-    const status=await request('/api/community/video/transcript',{action:'status',publicId}) as {ready:boolean}
-    if(status.ready){
-     setCaptionState('ready')
-     setCaptionMessage('Legendas automáticas prontas e sincronizadas.')
-     return true
-    }
-    await sleep(2000)
-   }
-   setCaptionState('skipped')
-   setCaptionMessage('A legenda ainda está processando. O vídeo continuará sem bloquear sua publicação.')
-   return false
-  }catch(cause){
-   setCaptionState('skipped')
-   setCaptionMessage(cause instanceof Error?cause.message:'Legendas automáticas indisponíveis agora.')
-   return false
-  }
+   const canvas=document.createElement('canvas');canvas.width=96;canvas.height=54;const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)throw new Error('Seu navegador não conseguiu iniciar a análise de cenas.')
+   const step=Math.max(2,Math.min(8,duration/70)),marks:number[]=[];let previous:Uint8ClampedArray|null=null
+   for(let t=0;t<duration;t+=step){source.currentTime=Math.min(duration-.05,t);await wait(source,'seeked').catch(()=>{});ctx.drawImage(source,0,0,canvas.width,canvas.height);const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;if(previous){let diff=0;for(let i=0;i<data.length;i+=16)diff+=Math.abs(data[i]-previous[i])+Math.abs(data[i+1]-previous[i+1])+Math.abs(data[i+2]-previous[i+2]);const normalized=diff/(data.length/16*765);if(normalized>.19)marks.push(t)}previous=new Uint8ClampedArray(data)}
+   const minGap=Math.max(8,Math.min(25,duration/14)),filtered=marks.filter((time,index)=>index===0||time-marks[index-1]>minGap),bounds=[0,...filtered,duration].sort((a,b)=>a-b);let detected:Segment[]=[]
+   for(let i=0;i<bounds.length-1;i++)if(bounds[i+1]-bounds[i]>.7)detected.push({id:uid(),start:bounds[i],end:bounds[i+1],keep:true})
+   if(detected.length<2){const count=Math.min(5,Math.max(2,Math.ceil(duration/75))),size=duration/count;detected=Array.from({length:count},(_,i)=>({id:uid(),start:i*size,end:i===count-1?duration:(i+1)*size,keep:true}))}
+   snapshot();setSegments(detected);setActiveSegment(0);seek(detected[0]?.start||0)
+  }catch(cause){setError(cause instanceof Error?cause.message:'Não foi possível analisar as cenas.')}finally{source.currentTime=old;if(wasPlaying)source.play().catch(()=>{});setDetecting(false)}
  }
 
- async function renderCloudinary(useOriginal=false){
-  if(exporting||!duration)return
-  if(file.size>MAX_VIDEO_BYTES){setError('O FULLSEND Studio aceita vídeos de até 100 MB para manter a edição estável.');return}
-  setExporting(true)
-  setError('')
-  setProgress(2)
+ function addMusic(files:FileList|null){const picked=Array.from(files||[]).slice(0,Math.max(0,4-tracks.length));for(const f of picked){if(!f.type.startsWith('audio/')){setError('Escolha somente arquivos de áudio.');continue}if(f.size>25*1024*1024){setError('Cada música pode ter no máximo 25 MB.');continue}const url=URL.createObjectURL(f),audio=new Audio(url);audio.preload='metadata';audio.onloadedmetadata=()=>setTracks(items=>items.length>=4?items:[...items,{id:uid(),file:f,url,start:current,volume:.8,duration:Number.isFinite(audio.duration)?audio.duration:0}]);audio.onerror=()=>{URL.revokeObjectURL(url);setError(`Não foi possível abrir ${f.name}.`)}}}
+ function updateTrack(id:string,patch:Partial<MusicTrack>){setTracks(items=>items.map(t=>t.id===id?{...t,...patch}:t))}
+ function removeTrack(id:string){setTracks(items=>{const found=items.find(t=>t.id===id);if(found)URL.revokeObjectURL(found.url);return items.filter(t=>t.id!==id)})}
+
+ async function generateCaptions(){
+  if(captionStatus==='working'||!duration)return;setCaptionStatus('working');setCaptionMessage('Analisando a fala do vídeo no navegador…');setError('')
+  const Speech=(window as any).SpeechRecognition||(window as any).webkitSpeechRecognition;if(!Speech){setCaptionStatus('error');setCaptionMessage('Este navegador não oferece transcrição automática. Use Chrome ou Edge atualizado.');return}
+  const probe=document.createElement('video');probe.src=sourceUrl;probe.preload='auto';probe.playsInline=true;probe.muted=true
   try{
-   const editStart=useOriginal?0:start
-   const editEnd=useOriginal?duration:end
-   const editRatio:Ratio=useOriginal?'original':ratio
-   const editCrop:CropMode=useOriginal?'fit':cropMode
-   const editSpeed:.5|1|1.5|2=useOriginal?1:speed
-   const editVolume=useOriginal?1:originalVolume
-   const editTracks=useOriginal?[]:tracks
+   if(probe.readyState<1)await wait(probe,'loadedmetadata');const start=active?.start??0,end=active?.end??duration;probe.currentTime=start;await wait(probe,'seeked').catch(()=>{});await probe.play();const stream=(probe as any).captureStream?.()||(probe as any).mozCaptureStream?.(),audioTrack=stream?.getAudioTracks?.()[0];if(!audioTrack){probe.pause();throw new Error('O navegador não liberou o áudio do vídeo para transcrição.')}
+   const recognition=new Speech();recognition.lang='pt-BR';recognition.continuous=true;recognition.interimResults=false;recognition.maxAlternatives=1;const generated:Caption[]=[];let lastTime=start
+   recognition.onresult=(event:any)=>{for(let i=event.resultIndex;i<event.results.length;i++){const result=event.results[i];if(!result.isFinal)continue;const text=String(result[0]?.transcript||'').trim();if(!text)continue;const finish=Math.min(end,Math.max(lastTime+1,probe.currentTime));generated.push({id:uid(),start:lastTime,end:finish,text});lastTime=finish;setCaptions([...generated])}}
+   const done=new Promise<void>((resolve,reject)=>{recognition.onerror=(event:any)=>reject(new Error(event?.error==='not-allowed'?'O navegador bloqueou a transcrição de áudio.':`Falha na transcrição: ${event?.error||'erro desconhecido'}.`));recognition.onend=()=>resolve()})
+   const timer=window.setInterval(()=>{if(probe.currentTime>=end-.1||probe.ended){probe.pause();try{recognition.stop()}catch{}}},180);try{recognition.start(audioTrack)}catch{throw new Error('Seu navegador não aceita transcrever diretamente o áudio do vídeo. Atualize o Chrome/Edge ou edite a legenda manualmente.')}await done;window.clearInterval(timer);probe.pause();audioTrack.stop?.();if(!generated.length)throw new Error('Não foi detectada fala nesse trecho. Você pode escrever a legenda manualmente.');setCaptions(generated);setCaptionStatus('ready');setCaptionMessage(`Português (Brasil) · ${generated.length} trecho${generated.length===1?'':'s'} gerado${generated.length===1?'':'s'}`)
+  }catch(cause){probe.pause();setCaptionStatus('error');setCaptionMessage(cause instanceof Error?cause.message:'Não foi possível gerar as legendas.')}
+ }
+ const captionAt=(time:number)=>captions.find(c=>time>=c.start&&time<=c.end)
 
-   setStage('ENVIANDO VÍDEO')
-   const source=await uploadCloudinary(file,'video',value=>setProgress(3+value*38))
+ function dimensions(video:HTMLVideoElement){if(ratio==='vertical')return quality==='720'?{width:720,height:1280}:{width:1080,height:1920};if(ratio==='square'){const side=quality==='720'?720:1080;return {width:side,height:side}};if(ratio==='wide')return quality==='720'?{width:1280,height:720}:{width:1920,height:1080};const max=quality==='720'?1280:quality==='1080'?1920:Math.max(video.videoWidth,video.videoHeight),scale=Math.min(1,max/Math.max(video.videoWidth,video.videoHeight));return {width:Math.max(2,Math.round(video.videoWidth*scale/2)*2),height:Math.max(2,Math.round(video.videoHeight*scale/2)*2)}}
+ function drawFrame(ctx:CanvasRenderingContext2D,video:HTMLVideoElement,width:number,height:number,time:number,useOriginal:boolean){ctx.fillStyle='#000';ctx.fillRect(0,0,width,height);const sr=video.videoWidth/video.videoHeight,tr=width/height;let sx=0,sy=0,sw=video.videoWidth,sh=video.videoHeight;if(!useOriginal&&ratio!=='original'){if(sr>tr){sw=video.videoHeight*tr;sx=(video.videoWidth-sw)/2}else{sh=video.videoWidth/tr;sy=(video.videoHeight-sh)/2}}ctx.drawImage(video,sx,sy,sw,sh,0,0,width,height);if(useOriginal)return;const text=captionAt(time)?.text||overlayText.trim();if(!text)return;const font=Math.max(24,Math.round(width*.035));ctx.font=`700 ${font}px Arial`;ctx.textAlign='center';ctx.textBaseline='middle';const maxWidth=width*.82,words=text.toUpperCase().split(/\s+/),lines:string[]=[];let line='';for(const word of words){const next=line?`${line} ${word}`:word;if(ctx.measureText(next).width>maxWidth&&line){lines.push(line);line=word}else line=next}if(line)lines.push(line);const lh=font*1.25,pad=font*.55,boxH=lines.length*lh+pad*2,y=height*.79;ctx.fillStyle='rgba(0,0,0,.76)';ctx.fillRect(width*.08,y-boxH/2,width*.84,boxH);lines.forEach((value,index)=>{ctx.fillStyle=index===lines.length-1&&lines.length>1?'#ff3047':'#fff';ctx.fillText(value,width/2,y-boxH/2+pad+lh*(index+.5),maxWidth)})}
 
-   let captionsReady=false
-   if(!useOriginal&&captionsEnabled){
-    setStage('GERANDO LEGENDAS AUTOMÁTICAS')
-    setProgress(44)
-    captionsReady=await makeCaptions(source.publicId)
-    setProgress(54)
-   }else if(!captionsEnabled){
-    setCaptionState('idle')
-    setCaptionMessage('Legendas automáticas desativadas.')
-   }
-
-   const uploadedTracks:{publicId:string;start:number;volume:number}[]=[]
-   if(editTracks.length){
-    for(let index=0;index<editTracks.length;index++){
-     const track=editTracks[index]
-     setStage(`ENVIANDO MÚSICA ${index+1} DE ${editTracks.length}`)
-     const base=55+(index/editTracks.length)*20
-     const span=20/editTracks.length
-     const uploaded=await uploadCloudinary(track.file,'audio',value=>setProgress(base+value*span))
-     uploadedTracks.push({publicId:uploaded.publicId,start:track.start,volume:track.volume})
-    }
-   }else setProgress(75)
-
-   setStage('MONTANDO MP4 / H.264')
-   setProgress(80)
-   const output=await request('/api/community/video/render',{
-    publicId:source.publicId,
-    start:editStart,
-    end:editEnd,
-    ratio:editRatio,
-    cropMode:editCrop,
-    quality,
-    speed:editSpeed,
-    originalVolume:editVolume,
-    captions:captionsReady,
-    tracks:uploadedTracks
-   }) as ProcessedVideo
-   setProgress(89)
-   setStage('FINALIZANDO VÍDEO')
-   await probeRemoteVideo(output.url)
-   setProgress(100)
-   setStage('PRONTO PARA PUBLICAR')
-   onConfirm(output)
-  }catch(cause){
-   setError(cause instanceof Error?cause.message:'Não foi possível processar este vídeo.')
-  }finally{
-   setExporting(false)
-  }
+ async function exportVideo(useOriginal=false){
+  if(exporting||!duration)return;const kept=useOriginal?[{id:'original',start:0,end:duration,keep:true}]:segments.filter(s=>s.keep);if(!kept.length){setError('Mantenha pelo menos um clip na timeline.');return}const mime=recorderType();if(!mime){setError('Este navegador não possui exportação de vídeo compatível. Use Chrome ou Edge atualizado.');return}setExporting(true);setProgress(0);setError('');let context:AudioContext|null=null
+  try{
+   const render=document.createElement('video');render.src=sourceUrl;render.preload='auto';render.playsInline=true;if(render.readyState<1)await wait(render,'loadedmetadata');const canvas=document.createElement('canvas'),size=useOriginal?(()=>{const max=Math.max(render.videoWidth,render.videoHeight),scale=Math.min(1,1920/max);return {width:Math.max(2,Math.round(render.videoWidth*scale/2)*2),height:Math.max(2,Math.round(render.videoHeight*scale/2)*2)}})():dimensions(render);canvas.width=size.width;canvas.height=size.height;const ctx=canvas.getContext('2d',{alpha:false});if(!ctx)throw new Error('Não foi possível iniciar o renderizador.');const stream=canvas.captureStream(30);context=new AudioContext();const destination=context.createMediaStreamDestination(),mainSource=context.createMediaElementSource(render),mainGain=context.createGain();mainGain.gain.value=useOriginal?1:volume;mainSource.connect(mainGain).connect(destination)
+   const audios=(useOriginal?[]:tracks).map(track=>{const audio=new Audio(track.url),source=context!.createMediaElementSource(audio),gain=context!.createGain();gain.gain.value=track.volume;source.connect(gain).connect(destination);return {track,audio,started:false}}),mixed=new MediaStream([...stream.getVideoTracks(),...destination.stream.getAudioTracks()]),recorder=new MediaRecorder(mixed,{mimeType:mime,videoBitsPerSecond:quality==='720'?3800000:6500000,audioBitsPerSecond:160000}),chunks:BlobPart[]=[];recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)}
+   const complete=new Promise<File>((resolve,reject)=>{recorder.onerror=()=>reject(new Error('O navegador interrompeu a exportação.'));recorder.onstop=()=>{const type=recorder.mimeType||mime,blob=new Blob(chunks,{type});if(!blob.size){reject(new Error('O vídeo exportado ficou vazio.'));return}const mp4=type.includes('mp4'),name=file.name.replace(/\.[^.]+$/,'');resolve(new File([blob],`${name}-fullsend.${mp4?'mp4':'webm'}`,{type:mp4?'video/mp4':'video/webm',lastModified:Date.now()}))}}),total=kept.reduce((sum,s)=>sum+s.end-s.start,0);let rendered=0;await context.resume();recorder.start(1000)
+   for(const segment of kept){render.currentTime=segment.start;await wait(render,'seeked').catch(()=>{});render.playbackRate=useOriginal?1:speed;await render.play();await new Promise<void>((resolve,reject)=>{let raf=0;const paint=()=>{try{const sourceTime=render.currentTime;drawFrame(ctx,render,canvas.width,canvas.height,sourceTime,useOriginal);audios.forEach(item=>{const local=sourceTime-item.track.start;if(local>=0&&local<item.track.duration){item.audio.volume=item.track.volume;item.audio.playbackRate=useOriginal?1:speed;if(!item.started){item.started=true;item.audio.currentTime=Math.max(0,local);item.audio.play().catch(()=>{})}}else if(item.started){item.audio.pause();item.started=false}});setProgress(Math.min(99,(rendered+Math.max(0,Math.min(segment.end,sourceTime)-segment.start))/Math.max(.1,total)*100));if(sourceTime>=segment.end-.03||render.ended){render.pause();audios.forEach(item=>{item.audio.pause();item.started=false});resolve();return}raf=requestAnimationFrame(paint)}catch(cause){cancelAnimationFrame(raf);reject(cause)}};raf=requestAnimationFrame(paint);render.addEventListener('error',()=>{cancelAnimationFrame(raf);reject(new Error('O vídeo apresentou erro durante a exportação.'))},{once:true})});rendered+=segment.end-segment.start}
+   recorder.stop();const output=await complete;setProgress(100);onConfirm(output)
+  }catch(cause){setError(cause instanceof Error?cause.message:'Não foi possível exportar o vídeo.')}finally{await context?.close().catch(()=>{});setExporting(false)}
  }
 
- const trimmed=Math.max(0,end-start)
- const captionLabel=captionState==='ready'?'PRONTAS':captionState==='working'?'GERANDO…':captionState==='skipped'?'INDISPONÍVEL':'AUTO'
+ const totalKept=segments.filter(s=>s.keep).reduce((sum,s)=>sum+s.end-s.start,0),currentCaption=captionAt(current),type=recorderType(),outputLabel=type.includes('mp4')?'MP4 · H.264':'WebM · compatível com o mural'
+ const tools:[Tool,string,string,string][]=[['cut','✂','Cortar','Corte inteligente e divisão'],['music','♫','Música','Até 4 faixas de áudio'],['captions','CC','Legendas IA','Gerar e corrigir automaticamente'],['format','▣','Formato','9:16 · 1:1 · 16:9'],['speed','⚡','Velocidade','0.5x até 2x'],['text','T','Texto','Títulos e chamadas'],['cover','▧','Capa','Escolher frame de capa']]
 
- return <div className="fs-studio-backdrop" role="dialog" aria-modal="true" aria-label="Editor de vídeo FULLSEND Studio">
-  <section className="fs-studio">
-   <header className="fs-studio-head">
-    <div><span>FULLSEND VIDEO STUDIO</span><h2>EDITOR DO MURAL</h2><p>Todo vídeo passa por aqui antes de publicar na Comunidade.</p></div>
-    <div className="fs-head-actions"><b>{file.size>0?`${(file.size/1024/1024).toFixed(1)} MB`:''}</b><button type="button" onClick={onCancel} disabled={exporting} aria-label="Fechar"><X/></button></div>
-   </header>
+ return <div className="fs-figma-backdrop" role="dialog" aria-modal="true" aria-label="FULLSEND Video Studio"><section className="fs-figma-studio">
+  <header className="fs-figma-header"><div className="fs-desktop-brand"><strong>FULLSEND VIDEO STUDIO</strong><span>Editar vídeo · {file.name}</span></div><div className="fs-mobile-brand"><button type="button" onClick={onCancel} disabled={exporting}><ChevronLeft/></button><strong>STUDIO</strong></div><div className="fs-header-actions"><button type="button" className="fs-save-draft" disabled={exporting}><Save size={14}/><span>SALVAR RASCUNHO</span></button><button type="button" className="fs-export-top" onClick={()=>exportVideo(false)} disabled={exporting||!duration}>{exporting?'EXPORTANDO…':'GERAR VÍDEO'}</button><button type="button" className="fs-close" onClick={onCancel} disabled={exporting}><X/></button></div></header>
 
-   <main className="fs-studio-workspace">
-    <aside className="fs-studio-tools">
-     <span className="fs-section-kicker">FERRAMENTAS</span>
-     <h3><Scissors size={16}/> CORTE</h3>
-     <div className="fs-two-grid"><button type="button" onClick={cutStartHere} disabled={current>=end-.2}>INÍCIO AQUI</button><button type="button" onClick={cutEndHere} disabled={current<=start+.2}>FIM AQUI</button></div>
-     <small className="fs-tool-note">Ideal para clipes longos: escolha o trecho sem renderizar o vídeo no celular.</small>
+  <div className="fs-figma-workspace"><aside className="fs-tools-sidebar"><span className="fs-side-label">FERRAMENTAS</span>{tools.map(([value,icon,title,description])=><button type="button" key={value} className={tool===value?'active':''} onClick={()=>setTool(value)}><b>{icon}</b><span><strong>{title}</strong><small>{description}</small></span></button>)}<div className="fs-auto-cut-card"><strong>CORTE AUTOMÁTICO</strong><b>Clipes longos</b><span>Detecta mudanças de cena localmente, sem API e sem enviar o vídeo.</span><button type="button" onClick={smartCut} disabled={detecting||exporting}>{detecting?'ANALISANDO…':'ANALISAR CENAS'}</button></div></aside>
 
-     <h3><Film size={16}/> FORMATO</h3>
-     {([['vertical','9:16 Vertical'],['square','1:1 Quadrado'],['original','Original']] as [Ratio,string][]).map(([value,label])=><button type="button" key={value} className={ratio===value?'active':''} onClick={()=>setRatio(value)}>{label}</button>)}
+   <main className="fs-preview-workspace"><div className="fs-preview-badges"><span className="fs-long-badge">● VÍDEO {duration>180?'LONGO · ':''}{fmt(duration)}</span><span className={captionStatus==='ready'?'fs-caption-ready':'fs-caption-badge'}>{captionStatus==='ready'?'✓ LEGENDAS GERADAS':'CC LEGENDAS'}</span></div><div className={`fs-video-stage ratio-${ratio}`}><video ref={videoRef} src={sourceUrl} playsInline preload="metadata" onLoadedMetadata={e=>{const d=Number.isFinite(e.currentTarget.duration)?e.currentTarget.duration:0;setDuration(d);setSegments([{id:uid(),start:0,end:d,keep:true}]);setCoverTime(0);e.currentTarget.volume=volume}} onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} onTimeUpdate={e=>{const time=e.currentTarget.currentTime;setCurrent(time);const seg=segments[activeSegment];if(seg&&time>=seg.end-.02){e.currentTarget.pause();e.currentTarget.currentTime=seg.start;setCurrent(seg.start)}}}/>{(currentCaption?.text||overlayText.trim())&&<div className="fs-caption-preview"><span>{currentCaption?.text||overlayText}</span></div>}</div><div className="fs-playback"><button type="button" onClick={toggle}>{playing?<Pause size={18}/>:<Play size={18}/>}</button><span>{fmt(current)} / {fmt(duration)}</span><input type="range" min="0" max={duration||1} step=".05" value={Math.min(current,duration||0)} onChange={e=>seek(Number(e.target.value))}/><b>{Math.round(volume*100)}%</b></div></main>
 
-     {ratio!=='original'&&<><h3>ENQUADRAMENTO</h3><div className="fs-two-grid"><button type="button" className={cropMode==='fill'?'active':''} onClick={()=>setCropMode('fill')}>PREENCHER</button><button type="button" className={cropMode==='fit'?'active':''} onClick={()=>setCropMode('fit')}>SEM CORTAR</button></div></>}
+   <aside className="fs-properties"><span className="fs-side-label">PROPRIEDADES</span>
+    {tool==='cut'&&<div className="fs-property-stack"><section><h3>CORTE ATUAL</h3><div className="fs-time-grid"><label>INÍCIO<input type="number" min="0" max={active?.end||duration} step=".1" value={active?.start??0} onChange={e=>patchActive({start:Math.min(Number(e.target.value),Math.max(0,(active?.end||duration)-.2))})}/></label><label>FIM<input type="number" min={active?.start||0} max={duration} step=".1" value={active?.end??duration} onChange={e=>patchActive({end:Math.max(Number(e.target.value),(active?.start||0)+.2)})}/></label></div><div className="fs-action-grid"><button type="button" onClick={()=>active&&patchActive({start:current})} disabled={!active||current>=active.end-.2}>INÍCIO AQUI</button><button type="button" onClick={()=>active&&patchActive({end:current})} disabled={!active||current<=active.start+.2}>FIM AQUI</button></div></section><section><h3>DIVISÃO</h3><button type="button" className="fs-wide-action" onClick={splitHere} disabled={!active}>✂ DIVIDIR NA AGULHA</button><small>Duplo clique em um clip na timeline para retirar ou recolocar no vídeo final.</small></section></div>}
+    {tool==='format'&&<div className="fs-property-stack"><section><h3>FORMATO</h3><div className="fs-format-grid">{([['vertical','9:16'],['square','1:1'],['wide','16:9'],['original','Original']] as [Ratio,string][]).map(([value,label])=><button type="button" key={value} className={ratio===value?'active':''} onClick={()=>setRatio(value)}>{label}</button>)}</div></section><section><h3>QUALIDADE</h3><div className="fs-quality-grid">{([['1080','1080p'],['720','720p'],['auto','Auto']] as [Quality,string][]).map(([value,label])=><button type="button" key={value} className={quality===value?'active':''} onClick={()=>setQuality(value)}>{label}</button>)}</div></section></div>}
+    {tool==='speed'&&<div className="fs-property-stack"><section><h3>VELOCIDADE</h3><div className="fs-speed-grid">{([.5,1,1.5,2] as const).map(value=><button type="button" key={value} className={speed===value?'active':''} onClick={()=>setSpeed(value)}>{value}x</button>)}</div></section></div>}
+    {tool==='music'&&<div className="fs-property-stack"><section><h3>♫ MÚSICAS</h3><p>{tracks.length} faixa{tracks.length===1?'':'s'} adicionada{tracks.length===1?'':'s'} · máximo 4</p><input ref={musicInput} hidden type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" multiple onChange={e=>{addMusic(e.target.files);e.target.value=''}}/>{tracks.map(track=><div className="fs-music-row" key={track.id}><div><b>{track.file.name}</b><small>entra em {fmt(track.start)}</small></div><label><Volume2 size={12}/><input type="range" min="0" max="1" step=".05" value={track.volume} onChange={e=>updateTrack(track.id,{volume:Number(e.target.value)})}/></label><button type="button" onClick={()=>removeTrack(track.id)}><Trash2 size={13}/></button></div>)}<button type="button" className="fs-add-music" disabled={tracks.length>=4} onClick={()=>musicInput.current?.click()}>＋ ADICIONAR MÚSICA</button></section></div>}
+    {tool==='captions'&&<div className="fs-property-stack"><section className="fs-caption-panel"><h3>CC LEGENDAS AUTOMÁTICAS</h3><p className={captionStatus==='error'?'error':captionStatus==='ready'?'ready':''}>{captionMessage}</p><button type="button" className="fs-wide-action" onClick={generateCaptions} disabled={captionStatus==='working'}>{captionStatus==='working'?'GERANDO…':captionStatus==='ready'?'REGERAR LEGENDAS':'GERAR LEGENDAS'}</button>{captions.map((caption,index)=><label className="fs-caption-edit" key={caption.id}><span>{fmt(caption.start)}–{fmt(caption.end)}</span><textarea rows={2} value={caption.text} onChange={e=>setCaptions(items=>items.map((c,i)=>i===index?{...c,text:e.target.value}:c))}/></label>)}</section></div>}
+    {tool==='text'&&<div className="fs-property-stack"><section><h3>TEXTO</h3><textarea rows={4} value={overlayText} maxLength={120} placeholder="Título ou chamada no vídeo…" onChange={e=>setOverlayText(e.target.value)}/><small>O texto aparece na área inferior e é gravado no vídeo exportado.</small></section></div>}
+    {tool==='cover'&&<div className="fs-property-stack"><section><h3>CAPA</h3><p>Frame escolhido: {fmt(coverTime)}</p><button type="button" className="fs-wide-action" onClick={()=>setCoverTime(current)}><ImageIcon size={14}/> USAR FRAME ATUAL</button><small>A capa fica salva nesta edição enquanto o editor está aberto.</small></section></div>}
+    <section className="fs-original-audio"><h3>ÁUDIO ORIGINAL</h3><div><input type="range" min="0" max="1" step=".01" value={volume} onChange={e=>setVolume(Number(e.target.value))}/><b>{Math.round(volume*100)}%</b></div></section><section className="fs-output-card"><h3>SAÍDA</h3><b>{outputLabel}</b><span>{ratio==='vertical'?'1080 × 1920':ratio==='square'?'1080 × 1080':ratio==='wide'?'1920 × 1080':'Resolução original'} · {quality==='720'?'720p':quality==='auto'?'Auto':'1080p'}</span><button type="button" onClick={()=>exportVideo(false)} disabled={exporting||!duration}>GERAR VÍDEO</button></section>
+   </aside></div>
 
-     <h3><Zap size={16}/> QUALIDADE</h3>
-     <div className="fs-two-grid"><button type="button" className={quality==='1080'?'active':''} onClick={()=>setQuality('1080')}>1080P</button><button type="button" className={quality==='720'?'active':''} onClick={()=>setQuality('720')}>720P</button></div>
+  <section className="fs-mobile-quick">{([['cut','✂','CORTAR'],['music','♫','MÚSICA'],['captions','CC','LEGENDAS'],['format','▣','FORMATO'],['speed','⚡','VELOC.']] as [Tool,string,string][]).map(([value,icon,label])=><button type="button" key={value} className={tool===value?'active':''} onClick={()=>setTool(value)}><b>{icon}</b><span>{label}</span></button>)}</section>
+  <section className="fs-mobile-status"><button type="button" className={captionStatus==='ready'?'ready':''} onClick={()=>setTool('captions')}><b>{captionStatus==='ready'?'✓ Legendas automáticas prontas':'CC Legendas automáticas'}</b><small>{captionStatus==='ready'?'Português BR · toque para revisar':captionMessage}</small></button><button type="button" onClick={()=>setTool('music')}><b>♫ {tracks.length} música{tracks.length===1?'':'s'} adicionada{tracks.length===1?'':'s'}</b><span>+ MÚSICA</span></button></section>
 
-     <h3>VELOCIDADE</h3>
-     <div className="fs-speed-grid">{([.5,1,1.5,2] as const).map(value=><button type="button" key={value} className={speed===value?'active':''} onClick={()=>setSpeed(value)}>{value}x</button>)}</div>
-    </aside>
+  <section className="fs-timeline"><header><div><strong>TIMELINE</strong><button type="button" onClick={smartCut} disabled={detecting}><Sparkles size={13}/>{detecting?'ANALISANDO':'CORTE IA'}</button><button type="button" onClick={splitHere}><Scissors size={13}/>DIVIDIR</button><button type="button" onClick={undo} disabled={!undoStack.length}><RotateCcw size={14}/></button></div><span>{fmt(totalKept)}</span></header><div className="fs-timeline-scroll"><div className="fs-ruler">{Array.from({length:7},(_,i)=><span key={i}>{fmt(duration*i/6)}</span>)}</div><div className="fs-lane"><b>VÍDEO</b><div className="fs-lane-track">{segments.map((segment,index)=><button type="button" key={segment.id} className={`fs-video-clip ${index===activeSegment?'selected':''} ${segment.keep?'':'removed'}`} style={{left:`${duration?segment.start/duration*100:0}%`,width:`${duration?(segment.end-segment.start)/duration*100:0}%`}} onClick={()=>selectSegment(index)} onDoubleClick={()=>toggleKeep(index)}><span>CLIP {String(index+1).padStart(2,'0')} · {fmt(segment.start)}–{fmt(segment.end)}</span></button>)}<i className="fs-playhead" style={{left:`${duration?current/duration*100:0}%`}}/></div></div>{tracks.slice(0,2).map((track,index)=><div className="fs-lane" key={track.id}><b>ÁUDIO {index+1}</b><div className="fs-lane-track"><div className="fs-audio-clip" style={{left:`${duration?track.start/duration*100:0}%`,width:`${duration?Math.min(track.duration,Math.max(0,duration-track.start))/duration*100:0}%`}}>♫ {track.file.name}</div></div></div>)}<div className="fs-lane"><b>CC LEGENDAS</b><div className="fs-lane-track">{captions.map(c=><div className="fs-caption-clip" key={c.id} style={{left:`${duration?c.start/duration*100:0}%`,width:`${duration?(c.end-c.start)/duration*100:0}%`}}>{c.text}</div>)}</div></div></div><small>Clipes divididos sem perder o original · alterações não destrutivas · duplo clique remove/recoloca um clip</small></section>
 
-    <div className="fs-studio-preview">
-     <div className="fs-preview-badges"><span>VÍDEO · {fmt(duration)}</span><span className={captionState==='ready'?'is-ready':''}>CC {captionLabel}</span></div>
-     <div className={`fs-video-frame ratio-${ratio} crop-${cropMode}`}><video ref={videoRef} src={sourceUrl} playsInline preload="metadata" onLoadedMetadata={e=>{const value=e.currentTarget.duration||0;setDuration(value);setEnd(value);setCurrent(0);e.currentTarget.volume=originalVolume}} onTimeUpdate={e=>{const time=e.currentTarget.currentTime;setCurrent(time);syncMusic(time,true);if(end&&time>=end){e.currentTarget.pause();seek(start)}}} onPlay={()=>setPlaying(true)} onPause={()=>{setPlaying(false);audioRefs.current.forEach(audio=>audio.pause())}}/></div>
-     <div className="fs-preview-controls"><button type="button" onClick={toggle} aria-label={playing?'Pausar':'Reproduzir'}>{playing?<Pause/>:<Play/>}</button><span>{fmt(current)} / {fmt(duration)}</span><input aria-label="Posição do vídeo" type="range" min={start} max={end||1} step=".05" value={Math.min(Math.max(current,start),end||0)} onChange={e=>seek(Number(e.target.value))}/></div>
-     <div className="fs-cloud-badge">PRÉVIA LEVE NO APARELHO · PROCESSAMENTO FINAL NA NUVEM</div>
-    </div>
-
-    <aside className="fs-studio-side">
-     <section className="fs-side-card fs-caption-card">
-      <div className="fs-side-title"><div><b>CC</b><span>LEGENDAS AUTOMÁTICAS</span></div><button type="button" className={captionsEnabled?'active':''} onClick={()=>{setCaptionsEnabled(v=>!v);setCaptionState('idle');setCaptionMessage(!captionsEnabled?'Detecta a fala e sincroniza automaticamente.':'Legendas automáticas desativadas.')}}>{captionsEnabled?'ATIVADAS':'DESATIVADAS'}</button></div>
-      <p>{captionMessage}</p>
-      <small>As legendas são geradas na nuvem e podem ser incorporadas ao MP4 final. Se o serviço de transcrição estiver indisponível, a edição continua normalmente.</small>
-     </section>
-
-     <section className="fs-side-card">
-      <h3><Music2 size={17}/> MÚSICAS</h3>
-      <p>Adicione até 4 faixas. Cada música entra na posição atual da agulha.</p>
-      <input ref={musicInput} hidden type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" multiple onChange={e=>{addMusic(e.target.files);e.target.value=''}}/>
-      <button type="button" className="fs-add-music" onClick={()=>musicInput.current?.click()} disabled={tracks.length>=4||exporting}><Upload size={16}/> ADICIONAR MÚSICA</button>
-      <strong>{tracks.length}/4 faixas · até 20 MB cada</strong>
-     </section>
-
-     <section className="fs-side-card">
-      <h3><Volume2 size={16}/> ÁUDIO ORIGINAL</h3>
-      <label className="fs-master-volume"><input type="range" min="0" max="1" step=".05" value={originalVolume} onChange={e=>setOriginalVolume(Number(e.target.value))}/><b>{Math.round(originalVolume*100)}%</b></label>
-      <div className="fs-source-info"><b>{file.name}</b><small>Saída MP4 · H.264 · {quality==='1080'?'Full HD':'HD'}</small></div>
-     </section>
-    </aside>
-   </main>
-
-   <section className="fs-timeline">
-    <div className="fs-timeline-title"><div><Scissors size={18}/><span>TIMELINE</span><small>Corte de vídeo grande sem processar tudo no navegador</small></div><b>{fmt(trimmed)}</b></div>
-    <div className="fs-trim-controls">
-     <label>INÍCIO <input type="range" min="0" max={Math.max(0,end-.2)} step=".1" value={start} onChange={e=>{const value=Number(e.target.value);setStart(value);seek(value)}}/><b>{fmt(start)}</b></label>
-     <label>FIM <input type="range" min={Math.min(duration,start+.2)} max={duration||1} step=".1" value={end} onChange={e=>setEnd(Number(e.target.value))}/><b>{fmt(end)}</b></label>
-    </div>
-    <div className="fs-tracks">
-     <div className="fs-track"><div className="fs-track-label"><Film size={15}/><span>VÍDEO</span></div><div className="fs-track-lane"><div className="fs-video-clip" style={{left:`${duration?start/duration*100:0}%`,width:`${duration?trimmed/duration*100:100}%`}}><span>{file.name}</span></div><div className="fs-playhead" style={{left:`${duration?current/duration*100:0}%`}}/></div></div>
-     {tracks.map((track,index)=><div className="fs-track" key={track.id}><div className="fs-track-label"><Music2 size={15}/><span>ÁUDIO {index+1}</span></div><div className="fs-track-lane"><audio ref={node=>{if(node)audioRefs.current.set(track.id,node);else audioRefs.current.delete(track.id)}} src={track.url} preload="metadata"/><div className="fs-audio-clip" style={{left:`${duration?track.start/duration*100:0}%`,width:`${duration?Math.min(track.duration,Math.max(0,duration-track.start))/duration*100:20}%`}}><span>{track.file.name}</span></div></div><div className="fs-track-actions"><label title="Início da música">↦ <input type="number" min="0" max={duration} step=".1" value={track.start} onChange={e=>updateTrack(track.id,{start:Math.max(0,Math.min(duration,Number(e.target.value)))})}/></label><label title="Volume"><Volume2 size={13}/><input type="range" min="0" max="1" step=".05" value={track.volume} onChange={e=>updateTrack(track.id,{volume:Number(e.target.value)})}/></label><button type="button" onClick={()=>removeTrack(track.id)} aria-label={`Remover ${track.file.name}`}><Trash2 size={14}/></button></div></div>)}
-    </div>
-   </section>
-
-   {error&&<div className="fs-studio-error" role="alert">{error}</div>}
-   {exporting&&<div className="fs-render-progress" role="status"><div style={{width:`${progress}%`}}/><span>{stage} · {Math.round(progress)}%</span></div>}
-
-   <footer className="fs-studio-footer">
-    <button type="button" onClick={onCancel} disabled={exporting}><ChevronLeft size={17}/> CANCELAR</button>
-    <div><button type="button" className="fs-use-original" onClick={()=>renderCloudinary(true)} disabled={exporting||!duration}>USAR ORIGINAL</button><button type="button" className="fs-render" onClick={()=>renderCloudinary(false)} disabled={exporting||!duration||trimmed<.2}><Check size={18}/>{exporting?'PROCESSANDO…':'GERAR VÍDEO'}</button></div>
-   </footer>
-  </section>
- </div>
+  {error&&<div className="fs-studio-error" role="alert">{error}</div>}{exporting&&<div className="fs-export-progress" role="status"><div style={{width:`${progress}%`}}/><span>GERANDO VÍDEO · {Math.round(progress)}%</span></div>}
+  <footer className="fs-mobile-bottom"><button type="button" onClick={()=>exportVideo(true)} disabled={exporting||!duration}>SEM EDIÇÃO</button><button type="button" onClick={()=>exportVideo(false)} disabled={exporting||!duration}><Check size={14}/>{exporting?'GERANDO…':'GERAR VÍDEO'}</button></footer>
+ </section></div>
 }

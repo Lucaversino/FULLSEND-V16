@@ -6,7 +6,6 @@ import { MIME,postSchema,request,type CommunityPost,type PostInput } from '@/lib
 import VideoStudio from './VideoStudio'
 
 type Media=PostInput['media'][number]&{url?:string}
-type ProcessedVideo={path:string;type:'video/mp4';url:string}
 export default function Composer({initial,vehicleId,onDone,onClose}:{initial?:CommunityPost;vehicleId?:string;onDone:()=>void;onClose:()=>void}){
  const [id]=useState(()=>initial?.id||crypto.randomUUID())
  const [content,setContent]=useState(initial?.content||''),[type,setType]=useState(initial?.post_type||'Post normal')
@@ -50,8 +49,6 @@ export default function Composer({initial,vehicleId,onDone,onClose}:{initial?:Co
   const images=selected.filter(file=>file.type.startsWith('image/')),videos=selected.filter(file=>file.type.startsWith('video/'))
   const invalid=selected.find(file=>!images.includes(file)&&!videos.includes(file));if(invalid){setError('Escolha somente fotos ou vídeos.');return}
   if(images.length)await upload(images)
-  const tooLarge=videos.find(file=>file.size>100*1024*1024)
-  if(tooLarge){setError('Para editar sem travar no navegador, cada vídeo pode ter no máximo 100 MB no FULLSEND Studio.');return}
   if(videos.length)setVideoQueue(queue=>[...queue,...videos])
  }
  async function submit(e:React.FormEvent){e.preventDefault();if(uploadLock.current||submitLock.current)return;submitLock.current=true;setBusy(true);setError('');try{
@@ -60,9 +57,7 @@ export default function Composer({initial,vehicleId,onDone,onClose}:{initial?:Co
   if(!payload.success)throw new Error(payload.error.issues[0].message)
   await request('/api/community',initial?{post:payload.data}:{action:'post',post:payload.data},initial?'PATCH':'POST')
   onDone()
- }catch(e){setError(e instanceof Error?e.message:'Não foi possível publicar.')}finally{submitLock.current=false;setBusy(false)}
- return
- }
+ }catch(e){setError(e instanceof Error?e.message:'Não foi possível publicar.')}finally{submitLock.current=false;setBusy(false)}}
  return <section className="cm-card cm-composer cm-composer-simple" aria-label={initial?'Editar publicação':'Criar publicação'}>
   <div className="cm-row"><h2>{initial?'Editar publicação':'Publicar'}</h2><button type="button" disabled={busy||uploading} onClick={onClose} aria-label="Fechar editor">✕</button></div>
   <form onSubmit={submit}>
@@ -72,10 +67,9 @@ export default function Composer({initial,vehicleId,onDone,onClose}:{initial?:Co
    {!!media.length&&<div className="cm-previews">{media.map((m,i)=><div key={m.path}>{m.type.startsWith('video/')?<video src={m.url} controls playsInline preload="metadata"/>:<img src={m.url} alt={`Anexo ${i+1}`}/>}<button type="button" disabled={busy||uploading} onClick={()=>setMedia(items=>items.filter(x=>x.path!==m.path))}>Remover {i+1}</button></div>)}</div>}
    {error&&<p className="cm-error" role="alert">{error}</p>}
    {uploading&&<p role="status" className="cm-muted">Enviando anexos… Aguarde para publicar.</p>}
-   {!!videoQueue.length&&<p className="cm-notice" role="status">Vídeo selecionado: o FULLSEND Studio precisa finalizar a edição antes de liberar a publicação.</p>}
    <div className="cm-simple-footer"><button type="button" disabled={busy||uploading||media.length+videoQueue.length>=10} onClick={()=>fileInput.current?.click()}>＋ Fotos / vídeos{media.length||videoQueue.length?` (${media.length+videoQueue.length}/10)`:''}</button><button className="cm-primary" disabled={busy||uploading||videoQueue.length>0||!content.trim()}>{busy?'Publicando…':initial?'Salvar':'Publicar'}</button></div>
-   <small className="cm-simple-help">Todo vídeo passa pelo FULLSEND Studio antes de publicar · corte · músicas · legendas automáticas · MP4/H.264</small>
+   <small className="cm-simple-help">Todo vídeo abre o FULLSEND Video Studio antes de publicar · até 10 anexos · vídeos até 200 MB · sem Cloudinary</small>
   </form>
-  {videoQueue[0]&&<VideoStudio file={videoQueue[0]} onCancel={()=>setVideoQueue(queue=>queue.slice(1))} onConfirm={(edited:ProcessedVideo)=>{setMedia(items=>[...items,edited]);setVideoQueue(queue=>queue.slice(1))}}/>}
+  {videoQueue[0]&&<VideoStudio file={videoQueue[0]} onCancel={()=>setVideoQueue(queue=>queue.slice(1))} onConfirm={async edited=>{if(await upload([edited]))setVideoQueue(queue=>queue.slice(1))}}/>}
  </section>
 }
