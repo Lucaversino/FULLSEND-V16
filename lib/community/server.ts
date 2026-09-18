@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { cloudinaryVideoUrl,decodeCloudinaryMediaPath } from '@/lib/community/cloudinary'
 export class CommunityError extends Error {constructor(message:string,public status=400){super(message)}}
 export async function context(write=false){
  const s=await createClient();const {data:{user},error:authError}=await s.auth.getUser()
- // Falha de rede/serviço não significa sessão encerrada.
  if(authError && !['AuthSessionMissingError'].includes(authError.name) && !(authError.status && [400,401,403].includes(authError.status)))
   throw new CommunityError('Não foi possível verificar sua sessão agora. Tente novamente; não é necessário sair da conta.',503)
  const {data:profile,error}=user?await s.from('profiles').select('id,name,city,state,role,account_status').eq('id',user.id).maybeSingle():{data:null,error:null}
@@ -33,9 +33,21 @@ export function failure(e:unknown){
 }
 export function origin(req:Request){const from=req.headers.get('origin');if(from&&from!==new URL(req.url).origin)throw new CommunityError('Origem não permitida.',403)}
 export async function signedMedia(s:any,rows:any[]){
- const paths=Array.from(new Set(rows.flatMap(p=>(p.media||[]).map((m:any)=>m.path)))) as string[]
- if(!paths.length)return rows
- const {data}=checked(await s.storage.from('community-media').createSignedUrls(paths,300)) as any
- const urls=new Map((data||[]).map((m:any)=>[m.path,m.signedUrl]))
- return rows.map(p=>({...p,media:(p.media||[]).map((m:any)=>({...m,url:urls.get(m.path)||null}))}))
+ const all=(rows||[]).flatMap(p=>(p.media||[]).map((m:any)=>m.path)).filter(Boolean) as string[]
+ if(!all.length)return rows
+ const cloudinary=new Map<string,string>()
+ const storage:string[]=[]
+ for(const path of Array.from(new Set(all))){
+  const decoded=decodeCloudinaryMediaPath(path)
+  if(decoded){
+   const url=cloudinaryVideoUrl(decoded.p,decoded.t)
+   if(url)cloudinary.set(path,url)
+  }else storage.push(path)
+ }
+ const urls=new Map<string,string>()
+ if(storage.length){
+  const {data}=checked(await s.storage.from('community-media').createSignedUrls(storage,300)) as any
+  for(const item of data||[])if(item?.path&&item?.signedUrl)urls.set(item.path,item.signedUrl)
+ }
+ return rows.map(p=>({...p,media:(p.media||[]).map((m:any)=>({...m,url:cloudinary.get(m.path)||urls.get(m.path)||null}))}))
 }
