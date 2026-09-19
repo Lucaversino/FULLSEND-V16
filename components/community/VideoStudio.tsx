@@ -19,7 +19,7 @@ function recorderType(){if(typeof MediaRecorder==='undefined')return '';return [
 
 export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCancel:()=>void;onConfirm:(file:File)=>void}){
  const sourceUrl=useMemo(()=>URL.createObjectURL(file),[file])
- const videoRef=useRef<HTMLVideoElement>(null),stageRef=useRef<HTMLDivElement>(null),filmstripRef=useRef<HTMLDivElement>(null),musicLaneRef=useRef<HTMLDivElement>(null),musicInput=useRef<HTMLInputElement>(null),tracksRef=useRef<MusicTrack[]>([]),previewMusicRef=useRef<Map<string,HTMLAudioElement>>(new Map()),dragRef=useRef<{index:number;startX:number;moved:boolean;snap:boolean}|null>(null),trimRef=useRef<{index:number;edge:'start'|'end';startX:number;originalStart:number;originalEnd:number}|null>(null),musicDragRef=useRef<{id:string;startX:number;originalStart:number}|null>(null),musicTrimRef=useRef<{id:string;edge:'start'|'end';startX:number;originalStart:number;originalIn:number;originalOut:number}|null>(null)
+ const videoRef=useRef<HTMLVideoElement>(null),stageRef=useRef<HTMLDivElement>(null),filmstripRef=useRef<HTMLDivElement>(null),musicLaneRef=useRef<HTMLDivElement>(null),musicInput=useRef<HTMLInputElement>(null),tracksRef=useRef<MusicTrack[]>([]),dragRef=useRef<{index:number;startX:number;moved:boolean;snap:boolean}|null>(null),trimRef=useRef<{index:number;edge:'start'|'end';startX:number;originalStart:number;originalEnd:number}|null>(null),musicDragRef=useRef<{id:string;startX:number;originalStart:number}|null>(null),musicTrimRef=useRef<{id:string;edge:'start'|'end';startX:number;originalStart:number;originalIn:number;originalOut:number}|null>(null)
  const [duration,setDuration]=useState(0),[current,setCurrent]=useState(0),[playing,setPlaying]=useState(false),[muted,setMuted]=useState(false),[fullscreen,setFullscreen]=useState(false)
  const [ratio,setRatio]=useState<Ratio>('vertical'),[quality,setQuality]=useState<Quality>('1080'),[speed,setSpeed]=useState<.5|1|1.5|2>(1),[volume,setVolume]=useState(.76),[tool,setTool]=useState<Tool>('cut'),[mobileTool,setMobileTool]=useState<Tool|null>(null)
  const [segments,setSegments]=useState<Segment[]>([]),[activeSegment,setActiveSegment]=useState(0),[undoStack,setUndoStack]=useState<Segment[][]>([]),[sliceStart,setSliceStart]=useState<number|null>(null),[sliceEnd,setSliceEnd]=useState<number|null>(null)
@@ -27,19 +27,20 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
  const [captionStatus,setCaptionStatus]=useState<'idle'|'working'|'ready'|'error'>('idle'),[captionMessage,setCaptionMessage]=useState('Toque para gerar legendas automáticas no navegador.')
  const [detecting,setDetecting]=useState(false),[exporting,setExporting]=useState(false),[progress,setProgress]=useState(0),[error,setError]=useState(''),[thumbnails,setThumbnails]=useState<string[]>([]),[thumbLoading,setThumbLoading]=useState(false)
  const active=segments[activeSegment]
- useEffect(()=>{tracksRef.current=tracks;const players=previewMusicRef.current;for(const track of tracks){let audio=players.get(track.id);if(!audio){audio=new Audio(track.url);audio.preload='auto';audio.load();players.set(track.id,audio)}audio.volume=track.muted?0:track.volume;audio.playbackRate=speed;audio.muted=track.muted}for(const [id,audio] of players){if(!tracks.some(t=>t.id===id)){audio.pause();audio.removeAttribute('src');audio.load();players.delete(id)}}},[tracks,speed])
- useEffect(()=>()=>{URL.revokeObjectURL(sourceUrl);tracksRef.current.forEach(t=>URL.revokeObjectURL(t.url));previewMusicRef.current.forEach(audio=>{audio.pause();audio.removeAttribute('src');audio.load()});previewMusicRef.current.clear()},[sourceUrl])
- useEffect(()=>{const v=videoRef.current;if(v){v.playbackRate=speed;v.volume=volume;v.muted=muted}previewMusicRef.current.forEach((audio,id)=>{const track=tracksRef.current.find(t=>t.id===id);audio.playbackRate=speed;if(track){audio.muted=track.muted;audio.volume=track.muted?0:track.volume}})},[speed,volume,muted])
+ useEffect(()=>{tracksRef.current=tracks},[tracks])
+ useEffect(()=>()=>{URL.revokeObjectURL(sourceUrl);tracksRef.current.forEach(t=>URL.revokeObjectURL(t.url))},[sourceUrl])
+ useEffect(()=>{const v=videoRef.current;if(v){v.playbackRate=speed;v.volume=volume;v.muted=muted}},[speed,volume,muted])
  useEffect(()=>{const sync=()=>setFullscreen(Boolean(document.fullscreenElement));document.addEventListener('fullscreenchange',sync);return()=>document.removeEventListener('fullscreenchange',sync)},[])
 
  function clipDuration(segment:Segment){return Math.max(0,segment.end-segment.start)}
  const editDuration=segments.reduce((sum,s)=>sum+clipDuration(s),0)
  const timelineCurrent=segments.slice(0,activeSegment).reduce((sum,s)=>sum+clipDuration(s),0)+(active?Math.max(0,Math.min(clipDuration(active),current-active.start)):0)
  function clipOffset(index:number){return segments.slice(0,index).reduce((sum,s)=>sum+clipDuration(s),0)}
- function stopPreviewMusic(){previewMusicRef.current.forEach(audio=>audio.pause())}
+ function previewMusicNode(id:string){return document.getElementById('fs-preview-music-'+id) as HTMLAudioElement|null}
+ function stopPreviewMusic(){for(const track of tracksRef.current)previewMusicNode(track.id)?.pause()}
  function syncPreviewMusic(editTime:number,shouldPlay:boolean){
   for(const track of tracksRef.current){
-   const audio=previewMusicRef.current.get(track.id);if(!audio)continue
+   const audio=previewMusicNode(track.id);if(!audio)continue
    const len=musicLength(track),local=editTime-track.start
    if(local>=0&&local<len){
     const target=Math.max(track.inPoint,Math.min(track.outPoint-.01,track.inPoint+local))
@@ -51,7 +52,7 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
  }
  function armPreviewMusic(editTime:number){
   for(const track of tracksRef.current){
-   const audio=previewMusicRef.current.get(track.id);if(!audio||track.muted)continue
+   const audio=previewMusicNode(track.id);if(!audio||track.muted)continue
    const local=editTime-track.start,len=musicLength(track)
    if(local>=0&&local<len){const target=Math.max(track.inPoint,Math.min(track.outPoint-.01,track.inPoint+local));audio.currentTime=target;audio.volume=track.volume;audio.muted=false;audio.play().catch(()=>{})}
    else{const restore=track.volume;audio.volume=0;audio.muted=false;audio.play().then(()=>{audio.pause();audio.volume=restore}).catch(()=>{audio.volume=restore})}
@@ -164,7 +165,7 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
  function trimMusic(id:string,edge:'start'|'end',deltaTimeline:number,originalStart:number,originalIn:number,originalOut:number){setTracks(items=>items.map(t=>{if(t.id!==id)return t;const min=.25;if(edge==='start'){const maxDelta=Math.max(0,originalOut-originalIn-min),delta=Math.max(-originalIn,Math.min(maxDelta,deltaTimeline)),nextIn=Math.max(0,originalIn+delta),nextStart=Math.max(0,originalStart+delta);return {...t,inPoint:nextIn,start:nextStart}}const maxOut=Math.min(t.duration,originalOut+deltaTimeline);return {...t,outPoint:Math.max(originalIn+min,maxOut)}}))}
  function addMusic(files:FileList|null){const picked=Array.from(files||[]).slice(0,Math.max(0,4-tracks.length));for(const f of picked){if(!f.type.startsWith('audio/')){setError('Escolha somente arquivos de áudio.');continue}if(f.size>25*1024*1024){setError('Cada música pode ter no máximo 25 MB.');continue}const url=URL.createObjectURL(f),audio=new Audio(url);audio.preload='metadata';audio.onloadedmetadata=()=>{const d=Number.isFinite(audio.duration)?audio.duration:0,id=uid(),start=Math.max(0,Math.min(editDuration,timelineCurrent));setTracks(items=>items.length>=4?items:[...items,{id,file:f,url,start,volume:.8,duration:d,inPoint:0,outPoint:d,muted:false}]);setActiveMusicId(id);setTool('music');setMobileTool('music')};audio.onerror=()=>{URL.revokeObjectURL(url);setError(`Não foi possível abrir ${f.name}.`)}}}
  function updateTrack(id:string,patch:Partial<MusicTrack>){setTracks(items=>items.map(t=>t.id===id?{...t,...patch}:t))}
- function removeTrack(id:string){const player=previewMusicRef.current.get(id);if(player){player.pause();player.removeAttribute('src');player.load();previewMusicRef.current.delete(id)}setTracks(items=>{const found=items.find(t=>t.id===id);if(found)URL.revokeObjectURL(found.url);const next=items.filter(t=>t.id!==id);if(activeMusicId===id)setActiveMusicId(next[0]?.id||null);return next})}
+ function removeTrack(id:string){const audio=previewMusicNode(id);if(audio)audio.pause();setTracks(items=>{const found=items.find(t=>t.id===id);if(found)URL.revokeObjectURL(found.url);const next=items.filter(t=>t.id!==id);if(activeMusicId===id)setActiveMusicId(next[0]?.id||null);return next})}
 
  async function generateCaptions(){
   if(captionStatus==='working'||!duration)return;setCaptionStatus('working');setCaptionMessage('Analisando a fala do vídeo no navegador…');setError('')
@@ -200,6 +201,7 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
 
  return <div className="fs-figma-backdrop" role="dialog" aria-modal="true" aria-label="FULLSEND Video Studio"><section className="fs-figma-studio">
   <header className="fs-figma-header"><div className="fs-desktop-brand"><strong>FULLSEND VIDEO STUDIO</strong><span>Editar vídeo · {file.name}</span></div><div className="fs-mobile-brand"><button type="button" onClick={onCancel} disabled={exporting}><ChevronLeft/></button><strong>STUDIO</strong></div><div className="fs-header-actions"><button type="button" className="fs-save-draft" disabled={exporting}><Save size={14}/><span>SALVAR RASCUNHO</span></button><button type="button" className="fs-export-top" onClick={()=>exportVideo(false)} disabled={exporting||!duration}>{exporting?'EXPORTANDO…':'GERAR VÍDEO'}</button><button type="button" className="fs-close" onClick={onCancel} disabled={exporting}><X/></button></div></header>
+  <div className="fs-preview-audio-bin" aria-hidden="true">{tracks.map(track=><audio key={track.id} id={'fs-preview-music-'+track.id} src={track.url} preload="auto" />)}</div>
 
   <div className="fs-figma-workspace"><aside className="fs-tools-sidebar"><span className="fs-side-label">FERRAMENTAS</span>{tools.map(([value,icon,title,description])=><button type="button" key={value} className={tool===value?'active':''} onClick={()=>setTool(value)}><b>{icon}</b><span><strong>{title}</strong><small>{description}</small></span></button>)}<div className="fs-auto-cut-card"><strong>CORTE AUTOMÁTICO</strong><b>Clipes longos</b><span>Detecta mudanças de cena localmente, sem API e sem enviar o vídeo.</span><button type="button" onClick={smartCut} disabled={detecting||exporting}>{detecting?'ANALISANDO…':'ANALISAR CENAS'}</button></div></aside>
 
