@@ -114,19 +114,25 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
    </aside></div>
 
   <section className="fs-mobile-player" aria-label="Player do vídeo">
-   <div className="fs-mobile-player-main">
-    <button type="button" aria-label="Voltar 5 segundos" onClick={()=>jump(-5)}>↶5</button>
-    <button type="button" className="play" aria-label={playing?'Pausar':'Reproduzir'} onClick={toggle}>{playing?<Pause size={22}/>:<Play size={22}/>}</button>
-    <button type="button" aria-label="Avançar 5 segundos" onClick={()=>jump(5)}>5↷</button>
-    <span>{fmt(current)} / {fmt(duration)}</span>
-    <button type="button" aria-label={muted?'Ativar áudio':'Silenciar'} onClick={()=>setMuted(value=>!value)}>{muted?'🔇':'🔊'}</button>
-    <button type="button" aria-label="Tela cheia" onClick={toggleFullscreen}>{fullscreen?'⤢':'⛶'}</button>
+   <div className="fs-mobile-player-top">
+    <div className="fs-mobile-player-transport">
+     <button type="button" aria-label="Voltar 5 segundos" onClick={()=>jump(-5)}>−5</button>
+     <button type="button" className="play" aria-label={playing?'Pausar':'Reproduzir'} onClick={toggle}>{playing?<Pause size={20}/>:<Play size={20}/>}</button>
+     <button type="button" aria-label="Avançar 5 segundos" onClick={()=>jump(5)}>+5</button>
+    </div>
+    <span className="fs-mobile-player-time">{fmt(current)} / {fmt(duration)}</span>
+    <div className="fs-mobile-player-utils">
+     <button type="button" aria-label={muted?'Ativar áudio':'Silenciar'} onClick={()=>setMuted(value=>!value)}>{muted?'🔇':'🔊'}</button>
+     <button type="button" aria-label="Tela cheia" onClick={toggleFullscreen}>{fullscreen?'⤢':'⛶'}</button>
+    </div>
    </div>
    <input className="fs-mobile-player-seek" aria-label="Posição do vídeo" type="range" min="0" max={duration||1} step=".01" value={Math.min(current,duration||0)} onChange={e=>seek(Number(e.target.value))}/>
-   <div className="fs-mobile-player-fine">
-    <button type="button" onClick={()=>stepFrame(-1)}>◀ FRAME</button>
-    <button type="button" onClick={()=>stepFrame(1)}>FRAME ▶</button>
-    <button type="button" onClick={cycleSpeed}>{speed}x</button>
+   <div className="fs-mobile-player-bottom">
+    <div className="fs-mobile-frame-group">
+     <button type="button" onClick={()=>stepFrame(-1)}>◀ FRAME</button>
+     <button type="button" onClick={()=>stepFrame(1)}>FRAME ▶</button>
+    </div>
+    <button type="button" className="fs-mobile-speed" onClick={cycleSpeed}>{speed}x</button>
    </div>
   </section>
   <section className="fs-mobile-quick">{([['cut','✂','CORTAR'],['music','♫','MÚSICA'],['captions','CC','LEGENDAS'],['format','▣','FORMATO'],['speed','⚡','VELOC.']] as [Tool,string,string][]).map(([value,icon,label])=><button type="button" key={value} className={tool===value?'active':''} onClick={()=>setTool(value)}><b>{icon}</b><span>{label}</span></button>)}</section>
