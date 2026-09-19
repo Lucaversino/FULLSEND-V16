@@ -22,7 +22,7 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
  const videoRef=useRef<HTMLVideoElement>(null),stageRef=useRef<HTMLDivElement>(null),filmstripRef=useRef<HTMLDivElement>(null),musicInput=useRef<HTMLInputElement>(null),tracksRef=useRef<MusicTrack[]>([]),dragRef=useRef<{index:number;startX:number;moved:boolean;snap:boolean}|null>(null),trimRef=useRef<{index:number;edge:'start'|'end';startX:number;originalStart:number;originalEnd:number}|null>(null)
  const [duration,setDuration]=useState(0),[current,setCurrent]=useState(0),[playing,setPlaying]=useState(false),[muted,setMuted]=useState(false),[fullscreen,setFullscreen]=useState(false)
  const [ratio,setRatio]=useState<Ratio>('vertical'),[quality,setQuality]=useState<Quality>('1080'),[speed,setSpeed]=useState<.5|1|1.5|2>(1),[volume,setVolume]=useState(.76),[tool,setTool]=useState<Tool>('cut'),[mobileTool,setMobileTool]=useState<Tool|null>(null)
- const [segments,setSegments]=useState<Segment[]>([]),[activeSegment,setActiveSegment]=useState(0),[undoStack,setUndoStack]=useState<Segment[][]>([])
+ const [segments,setSegments]=useState<Segment[]>([]),[activeSegment,setActiveSegment]=useState(0),[undoStack,setUndoStack]=useState<Segment[][]>([]),[sliceStart,setSliceStart]=useState<number|null>(null),[sliceEnd,setSliceEnd]=useState<number|null>(null)
  const [tracks,setTracks]=useState<MusicTrack[]>([]),[captions,setCaptions]=useState<Caption[]>([]),[overlayText,setOverlayText]=useState(''),[coverTime,setCoverTime]=useState(0)
  const [captionStatus,setCaptionStatus]=useState<'idle'|'working'|'ready'|'error'>('idle'),[captionMessage,setCaptionMessage]=useState('Toque para gerar legendas automáticas no navegador.')
  const [detecting,setDetecting]=useState(false),[exporting,setExporting]=useState(false),[progress,setProgress]=useState(0),[error,setError]=useState(''),[thumbnails,setThumbnails]=useState<string[]>([]),[thumbLoading,setThumbLoading]=useState(false)
@@ -37,7 +37,7 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
  const timelineCurrent=segments.slice(0,activeSegment).reduce((sum,s)=>sum+clipDuration(s),0)+(active?Math.max(0,Math.min(clipDuration(active),current-active.start)):0)
  function clipOffset(index:number){return segments.slice(0,index).reduce((sum,s)=>sum+clipDuration(s),0)}
  function snapshot(){setUndoStack(stack=>[...stack.slice(-9),segments.map(s=>({...s}))])}
- function undo(){const prev=undoStack.at(-1);if(!prev)return;setSegments(prev);setUndoStack(stack=>stack.slice(0,-1));const index=Math.min(activeSegment,Math.max(0,prev.length-1));setActiveSegment(index);const seg=prev[index];if(seg){setCurrent(seg.start);if(videoRef.current)videoRef.current.currentTime=seg.start}}
+ function undo(){const prev=undoStack.at(-1);if(!prev)return;setSliceStart(null);setSliceEnd(null);setSegments(prev);setUndoStack(stack=>stack.slice(0,-1));const index=Math.min(activeSegment,Math.max(0,prev.length-1));setActiveSegment(index);const seg=prev[index];if(seg){setCurrent(seg.start);if(videoRef.current)videoRef.current.currentTime=seg.start}}
  function seek(value:number){const next=Math.max(0,Math.min(duration||0,value));setCurrent(next);const v=videoRef.current;if(v&&Math.abs(v.currentTime-next)>.04)v.currentTime=next}
  function timelineLocation(value:number){if(!segments.length)return null;const target=Math.max(0,Math.min(editDuration||0,value));let passed=0;for(let i=0;i<segments.length;i++){const len=clipDuration(segments[i]);if(target<=passed+len||i===segments.length-1)return {index:i,source:segments[i].start+Math.max(0,Math.min(len,target-passed)),local:Math.max(0,Math.min(len,target-passed))};passed+=len}return null}
  function seekTimeline(value:number){const loc=timelineLocation(value);if(!loc)return;setActiveSegment(loc.index);seek(Math.min(segments[loc.index].end-.001,loc.source))}
@@ -74,13 +74,51 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
  function transitionLabel(value:Transition){return value==='fade'?'SUAVE':value==='black'?'PRETO':value==='flash'?'FLASH':'SEM'}
  function applyTransition(value:Transition){if(!active)return;snapshot();setSegments(items=>items.map((s,i)=>i===activeSegment?{...s,transition:value}:s))}
  function selectSegment(index:number,sourceTime?:number){const seg=segments[index];if(!seg)return;setActiveSegment(index);seek(sourceTime==null?seg.start:Math.max(seg.start,Math.min(seg.end-.001,sourceTime)))}
- function deleteSegment(index:number){if(segments.length<=1){setError('Faça um corte primeiro. É preciso manter pelo menos um trecho na timeline.');return}snapshot();const next=segments.filter((_,i)=>i!==index),nextIndex=Math.min(index,next.length-1);setSegments(next);setActiveSegment(nextIndex);const seg=next[nextIndex];if(seg){setCurrent(seg.start);if(videoRef.current)videoRef.current.currentTime=seg.start}}
+ function deleteSegment(index:number){setSliceStart(null);setSliceEnd(null);if(segments.length<=1){setError('Faça um corte primeiro. É preciso manter pelo menos um trecho na timeline.');return}snapshot();const next=segments.filter((_,i)=>i!==index),nextIndex=Math.min(index,next.length-1);setSegments(next);setActiveSegment(nextIndex);const seg=next[nextIndex];if(seg){setCurrent(seg.start);if(videoRef.current)videoRef.current.currentTime=seg.start}}
  function reorderSegment(from:number,to:number){if(from===to||from<0||to<0||from>=segments.length||to>=segments.length)return;setSegments(items=>{const next=[...items],picked=next.splice(from,1)[0];next.splice(to,0,picked);return next});setActiveSegment(to)}
  function trimSegment(index:number,edge:'start'|'end',deltaTimeline:number,originalStart:number,originalEnd:number){const segment=segments[index];if(!segment)return;const sourceDelta=deltaTimeline;const minLen=.25;let start=originalStart,end=originalEnd;if(edge==='start')start=Math.max(0,Math.min(originalEnd-minLen,originalStart+sourceDelta));else end=Math.min(duration,Math.max(originalStart+minLen,originalEnd+sourceDelta));setSegments(items=>items.map((s,i)=>i===index?{...s,start,end}:s));setActiveSegment(index);const source=edge==='start'?start:end-.001;setCurrent(source);if(videoRef.current)videoRef.current.currentTime=Math.max(start,Math.min(end-.001,source))}
  function clipIndexAtClientX(clientX:number){const el=filmstripRef.current;if(!el||!segments.length)return 0;const rect=el.getBoundingClientRect(),ratio=Math.max(0,Math.min(1,(clientX-rect.left)/Math.max(1,rect.width))),target=ratio*editDuration;let passed=0;for(let i=0;i<segments.length;i++){passed+=clipDuration(segments[i]);if(target<=passed)return i}return segments.length-1}
 
  function patchActive(patch:Partial<Segment>){if(!active)return;snapshot();setSegments(items=>items.map((s,i)=>i===activeSegment?{...s,...patch}:s))}
  function splitHere(){const loc=timelineLocation(timelineCurrent);if(!loc)return;const target=segments[loc.index],cut=loc.source;if(!target||cut<=target.start+.08||cut>=target.end-.08){setError('Posicione a agulha dentro do clipe, longe das bordas, para cortar.');return}snapshot();const left:Segment={...target,id:uid(),end:cut,transition:'none'},right:Segment={...target,id:uid(),start:cut};setSegments(items=>{const next=[...items];next.splice(loc.index,1,left,right);return next});setActiveSegment(loc.index+1);setCurrent(right.start);if(videoRef.current)videoRef.current.currentTime=right.start;setError('')}
+ function markSliceCut(){
+  if(!editDuration)return
+  if(sliceStart===null||sliceEnd!==null){setSliceStart(timelineCurrent);setSliceEnd(null);setError('');return}
+  if(Math.abs(timelineCurrent-sliceStart)<.08){setError('Mova a agulha para outro ponto antes de fazer o segundo corte.');return}
+  setSliceEnd(timelineCurrent);setError('')
+ }
+ function removeSlice(){
+  if(sliceStart===null||sliceEnd===null)return
+  const a=Math.max(0,Math.min(sliceStart,sliceEnd)),b=Math.min(editDuration,Math.max(sliceStart,sliceEnd))
+  if(b-a<.08){setError('O trecho selecionado é pequeno demais para remover.');return}
+  snapshot()
+  const next:Segment[]=[];let passed=0
+  for(const segment of segments){
+   const len=clipDuration(segment),t0=passed,t1=passed+len
+   if(b<=t0+.0001||a>=t1-.0001){next.push({...segment});passed=t1;continue}
+   const localStart=Math.max(0,a-t0),localEnd=Math.min(len,b-t0)
+   if(localStart>.03)next.push({...segment,id:uid(),end:segment.start+localStart,transition:'none'})
+   if(localEnd<len-.03)next.push({...segment,id:uid(),start:segment.start+localEnd})
+   passed=t1
+  }
+  if(!next.length){setError('Não é possível apagar o vídeo inteiro.');return}
+  const hasLeft=a>.03,hasRight=b<editDuration-.03
+  let joinIndex=-1
+  if(hasLeft&&hasRight){
+   let sum=0
+   for(let i=0;i<next.length;i++){sum+=clipDuration(next[i]);if(sum>=a-.03){joinIndex=i;break}}
+   if(joinIndex>=0&&joinIndex<next.length-1)next[joinIndex]={...next[joinIndex],transition:'fade'}
+  }
+  setSegments(next)
+  const selectedIndex=joinIndex>=0?joinIndex:Math.max(0,Math.min(next.length-1,hasLeft?next.length-1:0))
+  setActiveSegment(selectedIndex)
+  const selected=next[selectedIndex]
+  const source=joinIndex>=0?Math.max(selected.start,selected.end-.04):selected.start
+  setCurrent(source);if(videoRef.current)videoRef.current.currentTime=source
+  setSliceStart(null);setSliceEnd(null);setTool('transition');setMobileTool('transition');setError('')
+ }
+ function clearSlice(){setSliceStart(null);setSliceEnd(null)}
+
  function toggleKeep(index:number){deleteSegment(index)}
  function deleteActive(){deleteSegment(activeSegment)}
  function restoreActive(){}
@@ -175,19 +213,22 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
       {index===activeSegment&&<><button type="button" className="fs-trim-handle start" aria-label="Aparar início" onPointerDown={e=>{e.stopPropagation();trimRef.current={index,edge:'start',startX:e.clientX,originalStart:segment.start,originalEnd:segment.end};snapshot();e.currentTarget.setPointerCapture(e.pointerId)}} onPointerMove={e=>{const t=trimRef.current;if(!t||!e.currentTarget.hasPointerCapture(e.pointerId)||!filmstripRef.current)return;const px=Math.max(1,filmstripRef.current.getBoundingClientRect().width),delta=(e.clientX-t.startX)/px*editDuration;trimSegment(t.index,'start',delta,t.originalStart,t.originalEnd)}} onPointerUp={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);trimRef.current=null}}>‹</button><button type="button" className="fs-trim-handle end" aria-label="Aparar fim" onPointerDown={e=>{e.stopPropagation();trimRef.current={index,edge:'end',startX:e.clientX,originalStart:segment.start,originalEnd:segment.end};snapshot();e.currentTarget.setPointerCapture(e.pointerId)}} onPointerMove={e=>{const t=trimRef.current;if(!t||!e.currentTarget.hasPointerCapture(e.pointerId)||!filmstripRef.current)return;const px=Math.max(1,filmstripRef.current.getBoundingClientRect().width),delta=(e.clientX-t.startX)/px*editDuration;trimSegment(t.index,'end',delta,t.originalStart,t.originalEnd)}} onPointerUp={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);trimRef.current=null}}>›</button></>}
       {index<segments.length-1&&segment.transition!=='none'&&<small className="fs-transition-badge">◇ {transitionLabel(segment.transition)}</small>}
      </div>})}
+    {sliceStart!==null&&<i className="fs-slice-cut-marker start" style={{left:`${editDuration?sliceStart/editDuration*100:0}%`}}/>}
+    {sliceEnd!==null&&<i className="fs-slice-cut-marker end" style={{left:`${editDuration?sliceEnd/editDuration*100:0}%`}}/>}
+    {sliceStart!==null&&sliceEnd!==null&&<i className="fs-slice-selection" style={{left:`${editDuration?Math.min(sliceStart,sliceEnd)/editDuration*100:0}%`,width:`${editDuration?Math.abs(sliceEnd-sliceStart)/editDuration*100:0}%`}}/>}
     <b className="fs-mobile-filmstrip-playhead" style={{left:`${editDuration?timelineCurrent/editDuration*100:0}%`}}/>
    </div>
    <div className="fs-mobile-timeline-actions">
-    <button type="button" onClick={splitHere} disabled={!active}>✂ CORTAR AQUI</button>
-    <button type="button" className="danger" onClick={deleteActive} disabled={!active||segments.length<=1}>🗑 EXCLUIR CLIPE</button>
-    <button type="button" onClick={undo} disabled={!undoStack.length}>↶</button>
+    <button type="button" className={sliceStart!==null&&sliceEnd===null?'armed':''} onClick={markSliceCut}>{sliceStart===null?'✂ 1º CORTE':sliceEnd===null?'✂ 2º CORTE':'↺ NOVO TRECHO'}</button>
+    <button type="button" className="danger" onClick={removeSlice} disabled={sliceStart===null||sliceEnd===null}>🗑 APAGAR FATIA</button>
+    <button type="button" onClick={sliceStart!==null?clearSlice:undo} disabled={sliceStart===null&&!undoStack.length}>{sliceStart!==null?'×':'↶'}</button>
    </div>
-   <small className="fs-mobile-timeline-tip">TOQUE para posicionar · ARRASTE o clipe para ordenar · PUXE as alças vermelhas para aparar</small>
+   <small className="fs-mobile-timeline-tip">1º CORTE → mova a agulha → 2º CORTE → APAGAR FATIA. O espaço fecha sozinho e a transição entra no novo encontro.</small>
   </section>
 
   <section className="fs-mobile-quick">{([['cut','✂','CORTE'],['transition','◇','TRANS.'],['music','♫','MÚSICA'],['text','T','TEXTO'],['format','▣','FORMATO'],['speed','⚡','VELOC.']] as [Tool,string,string][]).map(([value,icon,label])=><button type="button" key={value} className={mobileTool===value?'active':''} onClick={()=>{setTool(value);setMobileTool(currentTool=>currentTool===value?null:value)}}><b>{icon}</b><span>{label}</span></button>)}</section>
   {mobileTool&&<section className="fs-mobile-tool-panel">
-   {mobileTool==='cut'&&<div className="fs-mobile-panel-card"><strong>✂ CORTE</strong><div className="fs-mobile-panel-actions"><button type="button" onClick={splitHere} disabled={!active}>✂ DIVIDIR</button><button type="button" className="danger" onClick={deleteActive} disabled={!active||segments.length<=1}>🗑 EXCLUIR</button><button type="button" onClick={undo} disabled={!undoStack.length}>↶ DESFAZER</button></div></div>}
+   {mobileTool==='cut'&&<div className="fs-mobile-panel-card"><strong>✂ REMOVER UM PEDAÇO</strong><div className="fs-mobile-panel-actions"><button type="button" onClick={markSliceCut}>{sliceStart===null?'1º CORTE':sliceEnd===null?'2º CORTE':'NOVO'}</button><button type="button" className="danger" onClick={removeSlice} disabled={sliceStart===null||sliceEnd===null}>🗑 APAGAR FATIA</button><button type="button" onClick={sliceStart!==null?clearSlice:undo} disabled={sliceStart===null&&!undoStack.length}>{sliceStart!==null?'CANCELAR':'↶ DESFAZER'}</button></div><small>Apaga somente o trecho entre os dois cortes e encosta automaticamente as partes que sobraram.</small></div>}
    {mobileTool==='transition'&&<div className="fs-mobile-panel-card"><strong>◇ TRANSIÇÃO APÓS ESTE CLIPE</strong><div className="fs-mobile-choice-grid">{([['none','SEM'],['fade','SUAVE'],['black','PRETO'],['flash','FLASH']] as [Transition,string][]).map(([value,label])=><button type="button" key={value} className={active?.transition===value?'active':''} onClick={()=>applyTransition(value)}>{label}</button>)}</div></div>}
    {mobileTool==='music'&&<div className="fs-mobile-panel-card"><strong>♫ MÚSICA</strong><button type="button" className="fs-mobile-primary" disabled={tracks.length>=4} onClick={()=>musicInput.current?.click()}>+ ADICIONAR MÚSICA</button>{tracks.map(track=><div className="fs-mobile-music-row" key={track.id}><div><b>{track.file.name}</b><small>entra em {fmt(track.start)}</small></div><input aria-label={"Volume "+track.file.name} type="range" min="0" max="1" step=".05" value={track.volume} onChange={e=>updateTrack(track.id,{volume:Number(e.target.value)})}/><button type="button" aria-label="Excluir música" onClick={()=>removeTrack(track.id)}><Trash2 size={15}/></button></div>)}</div>}
    {mobileTool==='text'&&<div className="fs-mobile-panel-card"><strong>T TEXTO</strong><textarea rows={2} value={overlayText} maxLength={120} placeholder="Digite o texto do vídeo…" onChange={e=>setOverlayText(e.target.value)}/></div>}
