@@ -19,7 +19,7 @@ function recorderType(){if(typeof MediaRecorder==='undefined')return '';return [
 
 export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCancel:()=>void;onConfirm:(file:File)=>void}){
  const sourceUrl=useMemo(()=>URL.createObjectURL(file),[file])
- const videoRef=useRef<HTMLVideoElement>(null),stageRef=useRef<HTMLDivElement>(null),filmstripRef=useRef<HTMLDivElement>(null),musicInput=useRef<HTMLInputElement>(null),tracksRef=useRef<MusicTrack[]>([]),dragRef=useRef<{index:number;startX:number;moved:boolean;snap:boolean}|null>(null)
+ const videoRef=useRef<HTMLVideoElement>(null),stageRef=useRef<HTMLDivElement>(null),filmstripRef=useRef<HTMLDivElement>(null),musicInput=useRef<HTMLInputElement>(null),tracksRef=useRef<MusicTrack[]>([]),dragRef=useRef<{index:number;startX:number;moved:boolean;snap:boolean}|null>(null),trimRef=useRef<{index:number;edge:'start'|'end';startX:number;originalStart:number;originalEnd:number}|null>(null)
  const [duration,setDuration]=useState(0),[current,setCurrent]=useState(0),[playing,setPlaying]=useState(false),[muted,setMuted]=useState(false),[fullscreen,setFullscreen]=useState(false)
  const [ratio,setRatio]=useState<Ratio>('vertical'),[quality,setQuality]=useState<Quality>('1080'),[speed,setSpeed]=useState<.5|1|1.5|2>(1),[volume,setVolume]=useState(.76),[tool,setTool]=useState<Tool>('cut'),[mobileTool,setMobileTool]=useState<Tool|null>(null)
  const [segments,setSegments]=useState<Segment[]>([]),[activeSegment,setActiveSegment]=useState(0),[undoStack,setUndoStack]=useState<Segment[][]>([])
@@ -39,7 +39,8 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
  function snapshot(){setUndoStack(stack=>[...stack.slice(-9),segments.map(s=>({...s}))])}
  function undo(){const prev=undoStack.at(-1);if(!prev)return;setSegments(prev);setUndoStack(stack=>stack.slice(0,-1));const index=Math.min(activeSegment,Math.max(0,prev.length-1));setActiveSegment(index);const seg=prev[index];if(seg){setCurrent(seg.start);if(videoRef.current)videoRef.current.currentTime=seg.start}}
  function seek(value:number){const next=Math.max(0,Math.min(duration||0,value));setCurrent(next);const v=videoRef.current;if(v&&Math.abs(v.currentTime-next)>.04)v.currentTime=next}
- function seekTimeline(value:number){if(!segments.length)return;const target=Math.max(0,Math.min(editDuration||0,value));let passed=0,index=segments.length-1,source=segments[index].start;for(let i=0;i<segments.length;i++){const len=clipDuration(segments[i]);if(target<=passed+len||i===segments.length-1){index=i;source=segments[i].start+Math.max(0,Math.min(len,target-passed));break}passed+=len}setActiveSegment(index);seek(Math.min(segments[index].end-.001,source))}
+ function timelineLocation(value:number){if(!segments.length)return null;const target=Math.max(0,Math.min(editDuration||0,value));let passed=0;for(let i=0;i<segments.length;i++){const len=clipDuration(segments[i]);if(target<=passed+len||i===segments.length-1)return {index:i,source:segments[i].start+Math.max(0,Math.min(len,target-passed)),local:Math.max(0,Math.min(len,target-passed))};passed+=len}return null}
+ function seekTimeline(value:number){const loc=timelineLocation(value);if(!loc)return;setActiveSegment(loc.index);seek(Math.min(segments[loc.index].end-.001,loc.source))}
  async function toggle(){const v=videoRef.current;if(!v||!active)return;if(v.paused){if(current<active.start||current>=active.end-.03)seek(active.start);v.playbackRate=speed;v.volume=volume;v.muted=muted;await v.play().catch(()=>setError('O navegador bloqueou a reprodução. Toque novamente.'))}else v.pause()}
  function jump(seconds:number){seekTimeline(timelineCurrent+seconds)}
  function stepFrame(direction:-1|1){videoRef.current?.pause();seekTimeline(timelineCurrent+direction/30)}
@@ -47,21 +48,23 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
  async function toggleFullscreen(){const stage=stageRef.current;if(!stage)return;try{if(document.fullscreenElement)await document.exitFullscreen();else await stage.requestFullscreen()}catch{setError('Tela cheia não está disponível neste navegador.')}}
  async function buildThumbnails(total:number){
   if(!total)return;setThumbLoading(true);setThumbnails([])
-  const probe=document.createElement('video');probe.src=sourceUrl;probe.preload='auto';probe.playsInline=true;probe.muted=true;probe.style.cssText='position:fixed;left:-9999px;top:0;width:160px;height:90px;opacity:.001;pointer-events:none';document.body.appendChild(probe)
-  const waitSafe=(event:string,ms=1400)=>new Promise<void>(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;probe.removeEventListener(event,finish);clearTimeout(timer);resolve()};const timer=window.setTimeout(finish,ms);probe.addEventListener(event,finish,{once:true})})
+  const probe=document.createElement('video');probe.src=sourceUrl;probe.preload='auto';probe.playsInline=true;probe.muted=true;probe.setAttribute('playsinline','');probe.style.cssText='position:fixed;left:-9999px;top:0;width:180px;height:102px;opacity:.01;pointer-events:none';document.body.appendChild(probe)
+  const waitEvent=(event:string,ms=1800)=>new Promise<void>(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;probe.removeEventListener(event,finish);clearTimeout(timer);resolve()};const timer=window.setTimeout(finish,ms);probe.addEventListener(event,finish,{once:true})})
   try{
-   if(probe.readyState<2){probe.load();await waitSafe('loadeddata',2200)}
-   const count=Math.min(28,Math.max(12,Math.round(total*1.5))),canvas=document.createElement('canvas');canvas.width=144;canvas.height=81
-   const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Canvas indisponível')
+   probe.load();if(probe.readyState<2)await waitEvent('loadeddata',2600)
+   await probe.play().catch(()=>{});await new Promise<void>(resolve=>window.setTimeout(resolve,80));probe.pause()
+   const count=Math.min(24,Math.max(12,Math.ceil(total*1.8))),canvas=document.createElement('canvas');canvas.width=160;canvas.height=90
+   const ctx=canvas.getContext('2d',{alpha:false});if(!ctx)throw new Error('Canvas indisponível')
    const frames:string[]=[]
    for(let i=0;i<count;i++){
-    const target=Math.min(Math.max(0,total-.06),(i+.5)/count*total)
-    if(Math.abs(probe.currentTime-target)>.03){probe.currentTime=target;await waitSafe('seeked',900)}
-    await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()))
+    const target=Math.min(Math.max(0,total-.08),(i+.5)/count*total)
+    probe.currentTime=target;await waitEvent('seeked',1100)
+    if(probe.readyState<2)await waitEvent('loadeddata',700)
+    await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())))
     ctx.fillStyle='#0b0d11';ctx.fillRect(0,0,canvas.width,canvas.height)
     if(probe.videoWidth&&probe.videoHeight){const sr=probe.videoWidth/probe.videoHeight,tr=canvas.width/canvas.height;let sx=0,sy=0,sw=probe.videoWidth,sh=probe.videoHeight;if(sr>tr){sw=probe.videoHeight*tr;sx=(probe.videoWidth-sw)/2}else{sh=probe.videoWidth/tr;sy=(probe.videoHeight-sh)/2}ctx.drawImage(probe,sx,sy,sw,sh,0,0,canvas.width,canvas.height)}
-    frames.push(canvas.toDataURL('image/jpeg',.7))
-    if(i===3)setThumbnails([...frames])
+    frames.push(canvas.toDataURL('image/jpeg',.74))
+    if(i===2||i===5)setThumbnails([...frames])
    }
    setThumbnails(frames)
   }catch{setThumbnails([])}finally{probe.pause();probe.removeAttribute('src');probe.load();probe.remove();setThumbLoading(false)}
@@ -73,10 +76,11 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
  function selectSegment(index:number,sourceTime?:number){const seg=segments[index];if(!seg)return;setActiveSegment(index);seek(sourceTime==null?seg.start:Math.max(seg.start,Math.min(seg.end-.001,sourceTime)))}
  function deleteSegment(index:number){if(segments.length<=1){setError('Faça um corte primeiro. É preciso manter pelo menos um trecho na timeline.');return}snapshot();const next=segments.filter((_,i)=>i!==index),nextIndex=Math.min(index,next.length-1);setSegments(next);setActiveSegment(nextIndex);const seg=next[nextIndex];if(seg){setCurrent(seg.start);if(videoRef.current)videoRef.current.currentTime=seg.start}}
  function reorderSegment(from:number,to:number){if(from===to||from<0||to<0||from>=segments.length||to>=segments.length)return;setSegments(items=>{const next=[...items],picked=next.splice(from,1)[0];next.splice(to,0,picked);return next});setActiveSegment(to)}
+ function trimSegment(index:number,edge:'start'|'end',deltaTimeline:number,originalStart:number,originalEnd:number){const segment=segments[index];if(!segment)return;const sourceDelta=deltaTimeline;const minLen=.25;let start=originalStart,end=originalEnd;if(edge==='start')start=Math.max(0,Math.min(originalEnd-minLen,originalStart+sourceDelta));else end=Math.min(duration,Math.max(originalStart+minLen,originalEnd+sourceDelta));setSegments(items=>items.map((s,i)=>i===index?{...s,start,end}:s));setActiveSegment(index);const source=edge==='start'?start:end-.001;setCurrent(source);if(videoRef.current)videoRef.current.currentTime=Math.max(start,Math.min(end-.001,source))}
  function clipIndexAtClientX(clientX:number){const el=filmstripRef.current;if(!el||!segments.length)return 0;const rect=el.getBoundingClientRect(),ratio=Math.max(0,Math.min(1,(clientX-rect.left)/Math.max(1,rect.width))),target=ratio*editDuration;let passed=0;for(let i=0;i<segments.length;i++){passed+=clipDuration(segments[i]);if(target<=passed)return i}return segments.length-1}
 
  function patchActive(patch:Partial<Segment>){if(!active)return;snapshot();setSegments(items=>items.map((s,i)=>i===activeSegment?{...s,...patch}:s))}
- function splitHere(){if(!active||current<=active.start+.12||current>=active.end-.12)return;snapshot();const left:{[K in keyof Segment]:Segment[K]}={...active,id:uid(),end:current,transition:'none'},right:{[K in keyof Segment]:Segment[K]}={...active,id:uid(),start:current};setSegments(items=>{const next=[...items];next.splice(activeSegment,1,left,right);return next});setActiveSegment(activeSegment+1);setCurrent(right.start);if(videoRef.current)videoRef.current.currentTime=right.start}
+ function splitHere(){const loc=timelineLocation(timelineCurrent);if(!loc)return;const target=segments[loc.index],cut=loc.source;if(!target||cut<=target.start+.08||cut>=target.end-.08){setError('Posicione a agulha dentro do clipe, longe das bordas, para cortar.');return}snapshot();const left:Segment={...target,id:uid(),end:cut,transition:'none'},right:Segment={...target,id:uid(),start:cut};setSegments(items=>{const next=[...items];next.splice(loc.index,1,left,right);return next});setActiveSegment(loc.index+1);setCurrent(right.start);if(videoRef.current)videoRef.current.currentTime=right.start;setError('')}
  function toggleKeep(index:number){deleteSegment(index)}
  function deleteActive(){deleteSegment(activeSegment)}
  function restoreActive(){}
@@ -162,12 +166,13 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
    <div className="fs-mobile-timeline-head"><strong>LINHA DO TEMPO</strong><span>{thumbLoading&&!thumbnails.length?'GERANDO QUADROS…':`${segments.length} CLIPE${segments.length===1?'':'S'} · ${fmt(editDuration)}`}</span></div>
    <div ref={filmstripRef} className="fs-mobile-filmstrip">
     {segments.map((segment,index)=>{const frames=clipFrames(segment),width=editDuration?clipDuration(segment)/editDuration*100:100;return <div key={segment.id} className={`fs-mobile-clip ${index===activeSegment?'active':''}`} style={{width:`${width}%`}}
-      onPointerDown={e=>{e.stopPropagation();dragRef.current={index,startX:e.clientX,moved:false,snap:false};e.currentTarget.setPointerCapture(e.pointerId)}}
+      onPointerDown={e=>{if((e.target as HTMLElement).closest('.fs-trim-handle'))return;e.stopPropagation();dragRef.current={index,startX:e.clientX,moved:false,snap:false};e.currentTarget.setPointerCapture(e.pointerId)}}
       onPointerMove={e=>{const drag=dragRef.current;if(!drag||!e.currentTarget.hasPointerCapture(e.pointerId))return;if(Math.abs(e.clientX-drag.startX)>10){drag.moved=true;if(!drag.snap){snapshot();drag.snap=true}const target=clipIndexAtClientX(e.clientX);if(target!==drag.index){reorderSegment(drag.index,target);drag.index=target}}}}
-      onPointerUp={e=>{const drag=dragRef.current;if(!drag)return;if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);if(!drag.moved){const rect=e.currentTarget.getBoundingClientRect(),p=Math.max(0,Math.min(1,(e.clientX-rect.left)/Math.max(1,rect.width)));selectSegment(drag.index,segments[drag.index].start+p*clipDuration(segments[drag.index]))}dragRef.current=null}}
+      onPointerUp={e=>{const drag=dragRef.current;if(!drag)return;if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);if(!drag.moved){const currentIndex=segments.findIndex(s=>s.id===segment.id);const rect=e.currentTarget.getBoundingClientRect(),p=Math.max(0,Math.min(1,(e.clientX-rect.left)/Math.max(1,rect.width)));if(currentIndex>=0)selectSegment(currentIndex,segments[currentIndex].start+p*clipDuration(segments[currentIndex]))}dragRef.current=null}}
       onPointerCancel={()=>{dragRef.current=null}}>
-      <div className="fs-mobile-clip-frames">{frames.length?frames.map((src,i)=><img key={i} src={src} alt="" draggable={false}/>):<span>CLIP {index+1}</span>}</div>
+      <div className="fs-mobile-clip-frames">{frames.length?frames.map((src,i)=><img key={i} src={src} alt="" draggable={false}/>):<span>{thumbLoading?'QUADROS…':`CLIP ${index+1}`}</span>}</div>
       <em>CLIP {index+1}</em>
+      {index===activeSegment&&<><button type="button" className="fs-trim-handle start" aria-label="Aparar início" onPointerDown={e=>{e.stopPropagation();trimRef.current={index,edge:'start',startX:e.clientX,originalStart:segment.start,originalEnd:segment.end};snapshot();e.currentTarget.setPointerCapture(e.pointerId)}} onPointerMove={e=>{const t=trimRef.current;if(!t||!e.currentTarget.hasPointerCapture(e.pointerId)||!filmstripRef.current)return;const px=Math.max(1,filmstripRef.current.getBoundingClientRect().width),delta=(e.clientX-t.startX)/px*editDuration;trimSegment(t.index,'start',delta,t.originalStart,t.originalEnd)}} onPointerUp={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);trimRef.current=null}}>‹</button><button type="button" className="fs-trim-handle end" aria-label="Aparar fim" onPointerDown={e=>{e.stopPropagation();trimRef.current={index,edge:'end',startX:e.clientX,originalStart:segment.start,originalEnd:segment.end};snapshot();e.currentTarget.setPointerCapture(e.pointerId)}} onPointerMove={e=>{const t=trimRef.current;if(!t||!e.currentTarget.hasPointerCapture(e.pointerId)||!filmstripRef.current)return;const px=Math.max(1,filmstripRef.current.getBoundingClientRect().width),delta=(e.clientX-t.startX)/px*editDuration;trimSegment(t.index,'end',delta,t.originalStart,t.originalEnd)}} onPointerUp={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);trimRef.current=null}}>›</button></>}
       {index<segments.length-1&&segment.transition!=='none'&&<small className="fs-transition-badge">◇ {transitionLabel(segment.transition)}</small>}
      </div>})}
     <b className="fs-mobile-filmstrip-playhead" style={{left:`${editDuration?timelineCurrent/editDuration*100:0}%`}}/>
@@ -177,7 +182,7 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
     <button type="button" className="danger" onClick={deleteActive} disabled={!active||segments.length<=1}>🗑 EXCLUIR CLIPE</button>
     <button type="button" onClick={undo} disabled={!undoStack.length}>↶</button>
    </div>
-   <small className="fs-mobile-timeline-tip">TOQUE no clipe para posicionar · ARRASTE o clipe para mudar a ordem</small>
+   <small className="fs-mobile-timeline-tip">TOQUE para posicionar · ARRASTE o clipe para ordenar · PUXE as alças vermelhas para aparar</small>
   </section>
 
   <section className="fs-mobile-quick">{([['cut','✂','CORTE'],['transition','◇','TRANS.'],['music','♫','MÚSICA'],['text','T','TEXTO'],['format','▣','FORMATO'],['speed','⚡','VELOC.']] as [Tool,string,string][]).map(([value,icon,label])=><button type="button" key={value} className={mobileTool===value?'active':''} onClick={()=>{setTool(value);setMobileTool(currentTool=>currentTool===value?null:value)}}><b>{icon}</b><span>{label}</span></button>)}</section>
