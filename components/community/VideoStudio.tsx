@@ -20,11 +20,11 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
  const sourceUrl=useMemo(()=>URL.createObjectURL(file),[file])
  const videoRef=useRef<HTMLVideoElement>(null),stageRef=useRef<HTMLDivElement>(null),musicInput=useRef<HTMLInputElement>(null),tracksRef=useRef<MusicTrack[]>([])
  const [duration,setDuration]=useState(0),[current,setCurrent]=useState(0),[playing,setPlaying]=useState(false),[muted,setMuted]=useState(false),[fullscreen,setFullscreen]=useState(false)
- const [ratio,setRatio]=useState<Ratio>('vertical'),[quality,setQuality]=useState<Quality>('1080'),[speed,setSpeed]=useState<.5|1|1.5|2>(1),[volume,setVolume]=useState(.76),[tool,setTool]=useState<Tool>('cut')
+ const [ratio,setRatio]=useState<Ratio>('vertical'),[quality,setQuality]=useState<Quality>('1080'),[speed,setSpeed]=useState<.5|1|1.5|2>(1),[volume,setVolume]=useState(.76),[tool,setTool]=useState<Tool>('cut'),[mobileTool,setMobileTool]=useState<Tool|null>(null)
  const [segments,setSegments]=useState<Segment[]>([]),[activeSegment,setActiveSegment]=useState(0),[undoStack,setUndoStack]=useState<Segment[][]>([])
  const [tracks,setTracks]=useState<MusicTrack[]>([]),[captions,setCaptions]=useState<Caption[]>([]),[overlayText,setOverlayText]=useState(''),[coverTime,setCoverTime]=useState(0)
  const [captionStatus,setCaptionStatus]=useState<'idle'|'working'|'ready'|'error'>('idle'),[captionMessage,setCaptionMessage]=useState('Toque para gerar legendas automáticas no navegador.')
- const [detecting,setDetecting]=useState(false),[exporting,setExporting]=useState(false),[progress,setProgress]=useState(0),[error,setError]=useState('')
+ const [detecting,setDetecting]=useState(false),[exporting,setExporting]=useState(false),[progress,setProgress]=useState(0),[error,setError]=useState(''),[thumbnails,setThumbnails]=useState<string[]>([]),[thumbLoading,setThumbLoading]=useState(false)
  const active=segments[activeSegment]
  useEffect(()=>{tracksRef.current=tracks},[tracks])
  useEffect(()=>()=>{URL.revokeObjectURL(sourceUrl);tracksRef.current.forEach(t=>URL.revokeObjectURL(t.url))},[sourceUrl])
@@ -33,12 +33,34 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
 
  function snapshot(){setUndoStack(stack=>[...stack.slice(-9),segments.map(s=>({...s}))])}
  function undo(){const prev=undoStack.at(-1);if(!prev)return;setSegments(prev);setUndoStack(stack=>stack.slice(0,-1));setActiveSegment(Math.min(activeSegment,Math.max(0,prev.length-1)))}
- function seek(value:number){const next=Math.max(0,Math.min(duration||0,value));setCurrent(next);const v=videoRef.current;if(v&&Math.abs(v.currentTime-next)>.04)v.currentTime=next}
+ function seek(value:number){const next=Math.max(0,Math.min(duration||0,value));setCurrent(next);const index=segments.findIndex(s=>next>=s.start-.001&&next<=s.end+.001);if(index>=0&&index!==activeSegment)setActiveSegment(index);const v=videoRef.current;if(v&&Math.abs(v.currentTime-next)>.04)v.currentTime=next}
  async function toggle(){const v=videoRef.current;if(!v)return;if(v.paused){v.playbackRate=speed;v.volume=volume;v.muted=muted;await v.play().catch(()=>setError('O navegador bloqueou a reprodução. Toque novamente.'))}else v.pause()}
  function jump(seconds:number){seek(current+seconds)}
  function stepFrame(direction:-1|1){videoRef.current?.pause();seek(current+direction/30)}
  function cycleSpeed(){const values=[.5,1,1.5,2] as const;const next=values[(values.indexOf(speed)+1)%values.length];setSpeed(next)}
  async function toggleFullscreen(){const stage=stageRef.current;if(!stage)return;try{if(document.fullscreenElement)await document.exitFullscreen();else await stage.requestFullscreen()}catch{setError('Tela cheia não está disponível neste navegador.')}}
+ async function buildThumbnails(total:number){
+  if(!total)return;setThumbLoading(true)
+  const probe=document.createElement('video');probe.src=sourceUrl;probe.preload='auto';probe.playsInline=true;probe.muted=true
+  try{
+   if(probe.readyState<1)await wait(probe,'loadedmetadata')
+   const count=Math.min(14,Math.max(8,Math.round(total/8))),canvas=document.createElement('canvas');canvas.width=120;canvas.height=68
+   const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Canvas indisponível')
+   const frames:string[]=[]
+   for(let i=0;i<count;i++){
+    probe.currentTime=Math.min(Math.max(0,total-.04),(i+.5)/count*total)
+    await wait(probe,'seeked').catch(()=>{})
+    const rvfc=(probe as any).requestVideoFrameCallback
+    if(typeof rvfc==='function')await new Promise<void>(resolve=>rvfc.call(probe,()=>resolve()))
+    ctx.fillStyle='#090a0d';ctx.fillRect(0,0,canvas.width,canvas.height)
+    const sr=probe.videoWidth/probe.videoHeight,tr=canvas.width/canvas.height;let sx=0,sy=0,sw=probe.videoWidth,sh=probe.videoHeight
+    if(sr>tr){sw=probe.videoHeight*tr;sx=(probe.videoWidth-sw)/2}else{sh=probe.videoWidth/tr;sy=(probe.videoHeight-sh)/2}
+    ctx.drawImage(probe,sx,sy,sw,sh,0,0,canvas.width,canvas.height)
+    frames.push(canvas.toDataURL('image/jpeg',.62))
+   }
+   setThumbnails(frames)
+  }catch{setThumbnails([])}finally{probe.removeAttribute('src');probe.load();setThumbLoading(false)}
+ }
  function selectSegment(index:number){setActiveSegment(index);const seg=segments[index];if(seg)seek(seg.start)}
  function patchActive(patch:Partial<Segment>){if(!active)return;snapshot();setSegments(items=>items.map((s,i)=>i===activeSegment?{...s,...patch}:s))}
  function splitHere(){if(!active||current<=active.start+.15||current>=active.end-.15)return;snapshot();setSegments(items=>{const next=[...items];next.splice(activeSegment,1,{...active,id:uid(),end:current},{...active,id:uid(),start:current});return next});setActiveSegment(activeSegment+1)}
@@ -93,14 +115,14 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
  }
 
  const totalKept=segments.filter(s=>s.keep).reduce((sum,s)=>sum+s.end-s.start,0),currentCaption=captionAt(current),type=recorderType(),outputLabel=type.includes('mp4')?'MP4 · H.264':'WebM · compatível com o mural'
- const tools:[Tool,string,string,string][]=[['cut','✂','Cortar','Corte inteligente e divisão'],['music','♫','Música','Até 4 faixas de áudio'],['captions','CC','Legendas IA','Gerar e corrigir automaticamente'],['format','▣','Formato','9:16 · 1:1 · 16:9'],['speed','⚡','Velocidade','0.5x até 2x'],['text','T','Texto','Títulos e chamadas'],['cover','▧','Capa','Escolher frame de capa']]
+ const tools:[Tool,string,string,string][]=[['cut','✂','Cortar','Corte e divisão'],['music','♫','Música','Adicionar faixa de áudio'],['text','T','Texto','Títulos e chamadas'],['format','▣','Formato','9:16 · 1:1 · 16:9'],['speed','⚡','Velocidade','0.5x até 2x'],['cover','▧','Capa','Escolher frame de capa']]
 
  return <div className="fs-figma-backdrop" role="dialog" aria-modal="true" aria-label="FULLSEND Video Studio"><section className="fs-figma-studio">
   <header className="fs-figma-header"><div className="fs-desktop-brand"><strong>FULLSEND VIDEO STUDIO</strong><span>Editar vídeo · {file.name}</span></div><div className="fs-mobile-brand"><button type="button" onClick={onCancel} disabled={exporting}><ChevronLeft/></button><strong>STUDIO</strong></div><div className="fs-header-actions"><button type="button" className="fs-save-draft" disabled={exporting}><Save size={14}/><span>SALVAR RASCUNHO</span></button><button type="button" className="fs-export-top" onClick={()=>exportVideo(false)} disabled={exporting||!duration}>{exporting?'EXPORTANDO…':'GERAR VÍDEO'}</button><button type="button" className="fs-close" onClick={onCancel} disabled={exporting}><X/></button></div></header>
 
   <div className="fs-figma-workspace"><aside className="fs-tools-sidebar"><span className="fs-side-label">FERRAMENTAS</span>{tools.map(([value,icon,title,description])=><button type="button" key={value} className={tool===value?'active':''} onClick={()=>setTool(value)}><b>{icon}</b><span><strong>{title}</strong><small>{description}</small></span></button>)}<div className="fs-auto-cut-card"><strong>CORTE AUTOMÁTICO</strong><b>Clipes longos</b><span>Detecta mudanças de cena localmente, sem API e sem enviar o vídeo.</span><button type="button" onClick={smartCut} disabled={detecting||exporting}>{detecting?'ANALISANDO…':'ANALISAR CENAS'}</button></div></aside>
 
-   <main className="fs-preview-workspace"><div className="fs-preview-badges"><span className="fs-long-badge">● VÍDEO {duration>180?'LONGO · ':''}{fmt(duration)}</span><span className={captionStatus==='ready'?'fs-caption-ready':'fs-caption-badge'}>{captionStatus==='ready'?'✓ LEGENDAS GERADAS':'CC LEGENDAS'}</span></div><div ref={stageRef} className={`fs-video-stage ratio-${ratio}`}><video ref={videoRef} src={sourceUrl} playsInline preload="metadata" onLoadedMetadata={e=>{const d=Number.isFinite(e.currentTarget.duration)?e.currentTarget.duration:0;setDuration(d);setSegments([{id:uid(),start:0,end:d,keep:true}]);setCoverTime(0);e.currentTarget.volume=volume}} onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} onTimeUpdate={e=>{const time=e.currentTarget.currentTime;setCurrent(time);const seg=segments[activeSegment];if(seg&&time>=seg.end-.02){e.currentTarget.pause();e.currentTarget.currentTime=seg.start;setCurrent(seg.start)}}}/>{(currentCaption?.text||overlayText.trim())&&<div className="fs-caption-preview"><span>{currentCaption?.text||overlayText}</span></div>}</div><div className="fs-playback fs-desktop-player"><button type="button" title="Voltar 5 segundos" onClick={()=>jump(-5)}>−5</button><button type="button" className="main" title={playing?'Pausar':'Reproduzir'} onClick={toggle}>{playing?<Pause size={18}/>:<Play size={18}/>}</button><button type="button" title="Avançar 5 segundos" onClick={()=>jump(5)}>+5</button><span>{fmt(current)} / {fmt(duration)}</span><input type="range" min="0" max={duration||1} step=".01" value={Math.min(current,duration||0)} onChange={e=>seek(Number(e.target.value))}/><button type="button" title="Áudio" onClick={()=>setMuted(value=>!value)}>{muted?'🔇':'🔊'}</button><button type="button" title="Velocidade" onClick={cycleSpeed}>{speed}x</button><button type="button" title="Tela cheia" onClick={toggleFullscreen}>{fullscreen?'⤢':'⛶'}</button></div></main>
+   <main className="fs-preview-workspace"><div className="fs-preview-badges"><span className="fs-long-badge">● VÍDEO {duration>180?'LONGO · ':''}{fmt(duration)}</span><span className={captionStatus==='ready'?'fs-caption-ready':'fs-caption-badge'}>{captionStatus==='ready'?'✓ LEGENDAS GERADAS':'CC LEGENDAS'}</span></div><div ref={stageRef} className={`fs-video-stage ratio-${ratio}`}><video ref={videoRef} src={sourceUrl} playsInline preload="metadata" onLoadedMetadata={e=>{const d=Number.isFinite(e.currentTarget.duration)?e.currentTarget.duration:0;setDuration(d);setSegments([{id:uid(),start:0,end:d,keep:true}]);setCoverTime(0);e.currentTarget.volume=volume;buildThumbnails(d)}} onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} onTimeUpdate={e=>{const time=e.currentTarget.currentTime;setCurrent(time);const index=segments.findIndex(s=>time>=s.start-.001&&time<=s.end+.001);if(index>=0&&index!==activeSegment)setActiveSegment(index)}}/>{(currentCaption?.text||overlayText.trim())&&<div className="fs-caption-preview"><span>{currentCaption?.text||overlayText}</span></div>}</div><div className="fs-playback fs-desktop-player"><button type="button" title="Voltar 5 segundos" onClick={()=>jump(-5)}>−5</button><button type="button" className="main" title={playing?'Pausar':'Reproduzir'} onClick={toggle}>{playing?<Pause size={18}/>:<Play size={18}/>}</button><button type="button" title="Avançar 5 segundos" onClick={()=>jump(5)}>+5</button><span>{fmt(current)} / {fmt(duration)}</span><input type="range" min="0" max={duration||1} step=".01" value={Math.min(current,duration||0)} onChange={e=>seek(Number(e.target.value))}/><button type="button" title="Áudio" onClick={()=>setMuted(value=>!value)}>{muted?'🔇':'🔊'}</button><button type="button" title="Velocidade" onClick={cycleSpeed}>{speed}x</button><button type="button" title="Tela cheia" onClick={toggleFullscreen}>{fullscreen?'⤢':'⛶'}</button></div></main>
 
    <aside className="fs-properties"><span className="fs-side-label">PROPRIEDADES</span>
     {tool==='cut'&&<div className="fs-property-stack"><section><h3>CORTE ATUAL</h3><div className="fs-time-grid"><label>INÍCIO<input type="number" min="0" max={active?.end||duration} step=".1" value={active?.start??0} onChange={e=>patchActive({start:Math.min(Number(e.target.value),Math.max(0,(active?.end||duration)-.2))})}/></label><label>FIM<input type="number" min={active?.start||0} max={duration} step=".1" value={active?.end??duration} onChange={e=>patchActive({end:Math.max(Number(e.target.value),(active?.start||0)+.2)})}/></label></div><div className="fs-action-grid"><button type="button" onClick={()=>active&&patchActive({start:current})} disabled={!active||current>=active.end-.2}>INÍCIO AQUI</button><button type="button" onClick={()=>active&&patchActive({end:current})} disabled={!active||current<=active.start+.2}>FIM AQUI</button></div></section><section><h3>DIVISÃO</h3><button type="button" className="fs-wide-action" onClick={splitHere} disabled={!active}>✂ DIVIDIR NA AGULHA</button><button type="button" className="fs-wide-action" onClick={active?.keep?deleteActive:restoreActive} disabled={!active}>{active?.keep?'🗑 EXCLUIR CLIPE':'↩ RESTAURAR CLIPE'}</button><small>Excluir retira o clipe do vídeo final sem apagar o arquivo original. Você pode restaurar ou desfazer.</small></section></div>}
@@ -114,36 +136,39 @@ export default function VideoStudio({file,onCancel,onConfirm}:{file:File;onCance
    </aside></div>
 
   <section className="fs-mobile-player" aria-label="Player do vídeo">
-   <div className="fs-mobile-player-top">
-    <div className="fs-mobile-player-transport">
-     <button type="button" aria-label="Voltar 5 segundos" onClick={()=>jump(-5)}>−5</button>
-     <button type="button" className="play" aria-label={playing?'Pausar':'Reproduzir'} onClick={toggle}>{playing?<Pause size={20}/>:<Play size={20}/>}</button>
-     <button type="button" aria-label="Avançar 5 segundos" onClick={()=>jump(5)}>+5</button>
-    </div>
-    <span className="fs-mobile-player-time">{fmt(current)} / {fmt(duration)}</span>
-    <div className="fs-mobile-player-utils">
-     <button type="button" aria-label={muted?'Ativar áudio':'Silenciar'} onClick={()=>setMuted(value=>!value)}>{muted?'🔇':'🔊'}</button>
-     <button type="button" aria-label="Tela cheia" onClick={toggleFullscreen}>{fullscreen?'⤢':'⛶'}</button>
-    </div>
+   <button type="button" aria-label="Voltar 5 segundos" onClick={()=>jump(-5)}>−5</button>
+   <button type="button" className="play" aria-label={playing?'Pausar':'Reproduzir'} onClick={toggle}>{playing?<Pause size={19}/>:<Play size={19}/>}</button>
+   <button type="button" aria-label="Avançar 5 segundos" onClick={()=>jump(5)}>+5</button>
+   <span>{fmt(current)} / {fmt(duration)}</span>
+   <button type="button" aria-label={muted?'Ativar áudio':'Silenciar'} onClick={()=>setMuted(value=>!value)}>{muted?'🔇':'🔊'}</button>
+   <button type="button" aria-label="Tela cheia" onClick={toggleFullscreen}>{fullscreen?'⤢':'⛶'}</button>
+  </section>
+
+  <section className="fs-mobile-timeline-editor" aria-label="Linha do tempo do vídeo">
+   <div className="fs-mobile-timeline-head"><strong>LINHA DO TEMPO</strong><span>{thumbLoading?'CARREGANDO QUADROS…':fmt(current)}</span></div>
+   <div className="fs-mobile-filmstrip"
+    onPointerDown={e=>{if(!duration)return;e.currentTarget.setPointerCapture(e.pointerId);const r=e.currentTarget.getBoundingClientRect(),p=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));seek(p*duration)}}
+    onPointerMove={e=>{if(!duration||!e.currentTarget.hasPointerCapture(e.pointerId))return;const r=e.currentTarget.getBoundingClientRect(),p=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));seek(p*duration)}}
+    onPointerUp={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId)}}>
+    <div className="fs-mobile-thumbnails">{thumbnails.length?thumbnails.map((src,index)=><img key={index} src={src} alt="" draggable={false}/>):Array.from({length:8},(_,i)=><span key={i}/>)}</div>
+    {segments.map((segment,index)=><i key={segment.id} className={`fs-mobile-segment ${index===activeSegment?'active':''} ${segment.keep?'':'removed'}`} style={{left:`${duration?segment.start/duration*100:0}%`,width:`${duration?(segment.end-segment.start)/duration*100:0}%`}}/>)}
+    <b className="fs-mobile-filmstrip-playhead" style={{left:`${duration?current/duration*100:0}%`}}/>
    </div>
-   <input className="fs-mobile-player-seek" aria-label="Posição do vídeo" type="range" min="0" max={duration||1} step=".01" value={Math.min(current,duration||0)} onChange={e=>seek(Number(e.target.value))}/>
-   <div className="fs-mobile-player-bottom">
-    <div className="fs-mobile-frame-group">
-     <button type="button" onClick={()=>stepFrame(-1)}>◀ FRAME</button>
-     <button type="button" onClick={()=>stepFrame(1)}>FRAME ▶</button>
-    </div>
-    <button type="button" className="fs-mobile-speed" onClick={cycleSpeed}>{speed}x</button>
+   <div className="fs-mobile-timeline-actions">
+    <button type="button" onClick={splitHere} disabled={!active}>✂ CORTAR AQUI</button>
+    <button type="button" className="danger" onClick={active?.keep?deleteActive:restoreActive} disabled={!active}>{active?.keep?'🗑 EXCLUIR TRECHO':'↩ RESTAURAR'}</button>
+    <button type="button" onClick={undo} disabled={!undoStack.length}>↶</button>
    </div>
   </section>
-  <section className="fs-mobile-quick">{([['cut','✂','CORTAR'],['music','♫','MÚSICA'],['captions','CC','LEGENDAS'],['format','▣','FORMATO'],['speed','⚡','VELOC.']] as [Tool,string,string][]).map(([value,icon,label])=><button type="button" key={value} className={tool===value?'active':''} onClick={()=>setTool(value)}><b>{icon}</b><span>{label}</span></button>)}</section>
-  <section className="fs-mobile-tool-panel">
-   {tool==='cut'&&<div className="fs-mobile-panel-card"><strong>✂ CORTE</strong><div className="fs-mobile-panel-actions"><button type="button" onClick={splitHere} disabled={!active}>✂ DIVIDIR</button><button type="button" className="danger" onClick={active?.keep?deleteActive:restoreActive} disabled={!active}>{active?.keep?'🗑 EXCLUIR':'↩ RESTAURAR'}</button><button type="button" onClick={undo} disabled={!undoStack.length}>↶ DESFAZER</button></div><small>Toque no clipe da timeline para selecionar. A agulha define onde dividir.</small></div>}
-   {tool==='music'&&<div className="fs-mobile-panel-card"><strong>♫ MÚSICA</strong><button type="button" className="fs-mobile-primary" disabled={tracks.length>=4} onClick={()=>musicInput.current?.click()}>+ ADICIONAR MÚSICA</button>{tracks.map(track=><div className="fs-mobile-music-row" key={track.id}><div><b>{track.file.name}</b><small>entra em {fmt(track.start)}</small></div><input aria-label={"Volume "+track.file.name} type="range" min="0" max="1" step=".05" value={track.volume} onChange={e=>updateTrack(track.id,{volume:Number(e.target.value)})}/><button type="button" aria-label="Excluir música" onClick={()=>removeTrack(track.id)}><Trash2 size={15}/></button></div>)}{!tracks.length&&<small>Nenhuma música adicionada. Toque no botão acima para escolher do celular.</small>}</div>}
-   {tool==='captions'&&<div className="fs-mobile-panel-card"><strong>CC LEGENDAS</strong><button type="button" className="fs-mobile-primary" onClick={generateCaptions} disabled={captionStatus==='working'}>{captionStatus==='working'?'GERANDO…':captionStatus==='ready'?'REGERAR LEGENDAS':'GERAR LEGENDAS'}</button><small className={captionStatus==='error'?'error':captionStatus==='ready'?'ready':''}>{captionMessage}</small>{captions.map((caption,index)=><label className="fs-mobile-caption-edit" key={caption.id}><span>{fmt(caption.start)}–{fmt(caption.end)}</span><textarea rows={2} value={caption.text} onChange={e=>setCaptions(items=>items.map((c,i)=>i===index?{...c,text:e.target.value}:c))}/></label>)}</div>}
-   {tool==='format'&&<div className="fs-mobile-panel-card"><strong>▣ FORMATO</strong><div className="fs-mobile-choice-grid">{([['vertical','9:16'],['square','1:1'],['wide','16:9'],['original','ORIGINAL']] as [Ratio,string][]).map(([value,label])=><button type="button" key={value} className={ratio===value?'active':''} onClick={()=>setRatio(value)}>{label}</button>)}</div><strong className="sub">QUALIDADE</strong><div className="fs-mobile-choice-grid three">{([['1080','1080p'],['720','720p'],['auto','AUTO']] as [Quality,string][]).map(([value,label])=><button type="button" key={value} className={quality===value?'active':''} onClick={()=>setQuality(value)}>{label}</button>)}</div></div>}
-   {tool==='speed'&&<div className="fs-mobile-panel-card"><strong>⚡ VELOCIDADE</strong><div className="fs-mobile-choice-grid">{([.5,1,1.5,2] as const).map(value=><button type="button" key={value} className={speed===value?'active':''} onClick={()=>setSpeed(value)}>{value}x</button>)}</div><small>Velocidade atual: {speed}x</small></div>}
-  </section>
-  <section className="fs-mobile-status"><button type="button" className={captionStatus==='ready'?'ready':''} onClick={()=>setTool('captions')}><b>{captionStatus==='ready'?'✓ Legendas automáticas prontas':'CC Legendas automáticas'}</b><small>{captionStatus==='ready'?'Português BR · toque para revisar':captionMessage}</small></button><button type="button" onClick={()=>setTool('music')}><b>♫ {tracks.length} música{tracks.length===1?'':'s'} adicionada{tracks.length===1?'':'s'}</b><span>+ MÚSICA</span></button></section>
+
+  <section className="fs-mobile-quick">{([['cut','✂','CORTE'],['music','♫','MÚSICA'],['text','T','TEXTO'],['format','▣','FORMATO'],['speed','⚡','VELOC.']] as [Tool,string,string][]).map(([value,icon,label])=><button type="button" key={value} className={mobileTool===value?'active':''} onClick={()=>{setTool(value);setMobileTool(currentTool=>currentTool===value?null:value)}}><b>{icon}</b><span>{label}</span></button>)}</section>
+  {mobileTool&&<section className="fs-mobile-tool-panel">
+   {mobileTool==='cut'&&<div className="fs-mobile-panel-card"><strong>✂ CORTE</strong><div className="fs-mobile-panel-actions"><button type="button" onClick={splitHere} disabled={!active}>✂ DIVIDIR</button><button type="button" className="danger" onClick={active?.keep?deleteActive:restoreActive} disabled={!active}>{active?.keep?'🗑 EXCLUIR':'↩ RESTAURAR'}</button><button type="button" onClick={undo} disabled={!undoStack.length}>↶ DESFAZER</button></div></div>}
+   {mobileTool==='music'&&<div className="fs-mobile-panel-card"><strong>♫ MÚSICA</strong><button type="button" className="fs-mobile-primary" disabled={tracks.length>=4} onClick={()=>musicInput.current?.click()}>+ ADICIONAR MÚSICA</button>{tracks.map(track=><div className="fs-mobile-music-row" key={track.id}><div><b>{track.file.name}</b><small>entra em {fmt(track.start)}</small></div><input aria-label={"Volume "+track.file.name} type="range" min="0" max="1" step=".05" value={track.volume} onChange={e=>updateTrack(track.id,{volume:Number(e.target.value)})}/><button type="button" aria-label="Excluir música" onClick={()=>removeTrack(track.id)}><Trash2 size={15}/></button></div>)}</div>}
+   {mobileTool==='text'&&<div className="fs-mobile-panel-card"><strong>T TEXTO</strong><textarea rows={2} value={overlayText} maxLength={120} placeholder="Digite o texto do vídeo…" onChange={e=>setOverlayText(e.target.value)}/></div>}
+   {mobileTool==='format'&&<div className="fs-mobile-panel-card"><strong>▣ FORMATO</strong><div className="fs-mobile-choice-grid">{([['vertical','9:16'],['square','1:1'],['wide','16:9'],['original','ORIGINAL']] as [Ratio,string][]).map(([value,label])=><button type="button" key={value} className={ratio===value?'active':''} onClick={()=>setRatio(value)}>{label}</button>)}</div></div>}
+   {mobileTool==='speed'&&<div className="fs-mobile-panel-card"><strong>⚡ VELOCIDADE</strong><div className="fs-mobile-choice-grid">{([.5,1,1.5,2] as const).map(value=><button type="button" key={value} className={speed===value?'active':''} onClick={()=>setSpeed(value)}>{value}x</button>)}</div></div>}
+  </section>}
 
   <section className="fs-timeline"><header><div><strong>TIMELINE</strong><button type="button" onClick={smartCut} disabled={detecting}><Sparkles size={13}/>{detecting?'ANALISANDO':'CORTE IA'}</button><button type="button" onClick={splitHere}><Scissors size={13}/>DIVIDIR</button><button type="button" onClick={active?.keep?deleteActive:restoreActive} disabled={!active}>{active?.keep?<><Trash2 size={13}/>EXCLUIR</>:<>↩ RESTAURAR</>}</button><button type="button" onClick={undo} disabled={!undoStack.length}><RotateCcw size={14}/></button></div><span>{fmt(totalKept)}</span></header><div className="fs-timeline-scroll"><div className="fs-ruler">{Array.from({length:7},(_,i)=><span key={i}>{fmt(duration*i/6)}</span>)}</div><div className="fs-lane"><b>VÍDEO</b><div className="fs-lane-track">{segments.map((segment,index)=><button type="button" key={segment.id} className={`fs-video-clip ${index===activeSegment?'selected':''} ${segment.keep?'':'removed'}`} style={{left:`${duration?segment.start/duration*100:0}%`,width:`${duration?(segment.end-segment.start)/duration*100:0}%`}} onClick={()=>selectSegment(index)} onDoubleClick={()=>toggleKeep(index)}><span>CLIP {String(index+1).padStart(2,'0')} · {fmt(segment.start)}–{fmt(segment.end)}</span></button>)}<i className="fs-playhead" style={{left:`${duration?current/duration*100:0}%`}}/></div></div>{tracks.slice(0,2).map((track,index)=><div className="fs-lane" key={track.id}><b>ÁUDIO {index+1}</b><div className="fs-lane-track"><div className="fs-audio-clip" style={{left:`${duration?track.start/duration*100:0}%`,width:`${duration?Math.min(track.duration,Math.max(0,duration-track.start))/duration*100:0}%`}}>♫ {track.file.name}</div></div></div>)}<div className="fs-lane"><b>CC LEGENDAS</b><div className="fs-lane-track">{captions.map(c=><div className="fs-caption-clip" key={c.id} style={{left:`${duration?c.start/duration*100:0}%`,width:`${duration?(c.end-c.start)/duration*100:0}%`}}>{c.text}</div>)}</div></div></div><small>Clipes divididos sem perder o original · EXCLUIR retira o clipe do vídeo final · duplo clique também remove/recoloca</small></section>
 
